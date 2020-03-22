@@ -1,6 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -17,6 +18,11 @@ namespace Zenserdes.Protobuf.Benchmarks
 	/// deserialized the same message in a mere 0 nanoseconds. Of course, the Zenserdes.Protobuf
 	/// message was handwritten, but that's because there was no Zenserdes.Protobuf
 	/// type generator at the time.
+	/// <para>
+	/// |      Method |     Mean |    Error |   StdDev |
+	/// |------------ |---------:|---------:|---------:|
+	/// | Deserialize | 33.42 ns | 0.289 ns | 0.270 ns |
+	/// </para>
 	/// </summary>
 	public class PseudoMessageBenchmarks
 	{
@@ -29,23 +35,10 @@ namespace Zenserdes.Protobuf.Benchmarks
 		public SearchRequest Deserialize()
 		{
 			var request = default(SearchRequest);
-			var streamer = new DataStreamer<MemoryView>(new MemoryView(_payload));
+			var streamer = new MemoryDataStreamer(_payload);
 
-			ReadOnlyMemory<byte> segment = default;
-			byte wireByte = default;
-
-			wireByte = streamer.NextSegment(ref segment);
-			if (segment.IsEmpty) return request;
-			request.HandleDeserialization(ref segment, wireByte);
-
-			wireByte = streamer.NextSegment(ref segment);
-			if (segment.IsEmpty) return request;
-			var adv = request.HandleDeserialization(ref segment, wireByte);
-			streamer.Advance(adv);
-
-			wireByte = streamer.NextSegment(ref segment);
-			if (segment.IsEmpty) return request;
-			request.HandleDeserialization(ref segment, wireByte);
+			var success = SearchRequest.TryDeserialize(ref streamer, ref request);
+			Debug.Assert(success);
 
 			return request;
 		}
@@ -59,86 +52,69 @@ namespace Zenserdes.Protobuf.Benchmarks
 		public int PageNumber { get; set; }
 		public int ResultsPerPage { get; set; }
 
-		// TODO: return boolean or something
-		public int HandleDeserialization(ref ReadOnlyMemory<byte> segment, byte wireByte)
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+		public static bool TryDeserialize(ref MemoryDataStreamer streamer, ref SearchRequest instance)
 		{
-			if (wireByte >= _lookupTable.Length)
+			byte wireByte = 0;
+
+			while (streamer.Next(ref wireByte))
 			{
-				return 0;
+				switch (wireByte)
+				{
+					case 0b00001_010: if (!SetQuery(ref instance, ref streamer)) return false; continue;
+					case 0b00010_000: if (!SetPageNumber(ref instance, ref streamer)) return false; continue;
+					case 0b00011_000: if (!SetResultsPerPage(ref instance, ref streamer)) return false; continue;
+					default:
+					{
+						// simulate work to the compiler
+						new System.Collections.Generic.List<int>(4);
+					}
+					continue;
+				}
 			}
-			/*
-			switch (segment.WireByte)
+
+			return true;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static bool SetQuery(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
+		{
+			uint length = 0;
+
+			if (!DataDecoder.TryReadVarint32(streamer.ReadOnlySpan, ref streamer.Position, ref length))
 			{
-				case 10: return SetQuery(ref this, ref segment.Data);
-				case 16: return SetPageNumber(ref this, ref segment.Data);
-				case 24: return SetResultsPerPage(ref this, ref segment.Data);
-				default: return 0;
+				return false;
 			}
-			*/
-			return _lookupTable[wireByte](ref this, ref segment);
-		}
 
-		private delegate int LookupTableAction(ref SearchRequest searchRequest, ref ReadOnlyMemory<byte> data);
-
-		private static LookupTableAction[] _lookupTable = new LookupTableAction[]
-		{
-			Fail, Fail, Fail, Fail, Fail, Fail, Fail, Fail, Fail, Fail,
-
-			// index 10: field 1, wire type 2, 'Query'
-			SetQuery,
-
-			Fail, Fail, Fail, Fail, Fail,
-
-			// index 16: field 2, wire type 0, 'PageNumber'
-			SetPageNumber,
-
-			Fail, Fail, Fail, Fail, Fail, Fail, Fail,
-
-			// index 24: field 3, wire type 0, 'ResultsPerPage'
-			SetResultsPerPage
-		};
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int Fail(ref SearchRequest searchRequest, ref ReadOnlyMemory<byte> data)
-		{
-			return default;
+			searchRequest.Query = streamer.ReadOnlyMemory.Slice(streamer.Position, (int)length);
+			streamer.Position += (int)length;
+			return true;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int SetQuery(ref SearchRequest searchRequest, ref ReadOnlyMemory<byte> data)
+		private static bool SetPageNumber(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
 		{
-			searchRequest.Query = data;
-			return default;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int SetPageNumber(ref SearchRequest searchRequest, ref ReadOnlyMemory<byte> data)
-		{
-			var bytesRead = DataDecoder.TryReadVarint32(data.Span, out var result);
-
-			if (bytesRead == 0)
+			uint result = 0;
+			if (!DataDecoder.TryReadVarint32(streamer.ReadOnlySpan, ref streamer.Position, ref result))
 			{
-				// TODO: return false
-				return default;
+				return false;
 			}
 
 			searchRequest.PageNumber = unchecked((int)result);
-			return bytesRead;
+			return true;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static int SetResultsPerPage(ref SearchRequest searchRequest, ref ReadOnlyMemory<byte> data)
+		private static bool SetResultsPerPage(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
 		{
-			var bytesRead = DataDecoder.TryReadVarint32(data.Span, out var result);
-
-			if (bytesRead == 0)
+			uint result = 0;
+			if (!DataDecoder.TryReadVarint32(streamer.ReadOnlySpan, ref streamer.Position, ref result))
 			{
-				// TODO: return false
-				return default;
+				return false;
 			}
 
 			searchRequest.ResultsPerPage = unchecked((int)result);
-			return bytesRead;
+			return true;
 		}
 	}
 }
