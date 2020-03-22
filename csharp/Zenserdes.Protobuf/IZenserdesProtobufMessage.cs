@@ -1,5 +1,7 @@
 ﻿#nullable enable
 
+using Zenserdes.Protobuf.Serialization;
+
 namespace Zenserdes.Protobuf
 {
 	/// <summary>
@@ -12,5 +14,8 @@ namespace Zenserdes.Protobuf
 		/// capacity of some buffer.
 		/// </summary>
 		int SizeHint { get; }
+
+		// TODO: docs
+		void HandleDeserialization(ProtobufMessageSegment segment);
 	}
 }
