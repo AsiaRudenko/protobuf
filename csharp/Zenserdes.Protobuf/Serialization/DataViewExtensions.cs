@@ -30,16 +30,15 @@ namespace Zenserdes.Protobuf.Serialization
 			where TDataView : struct, IDataView
 		{
 			var bytes = dataView.ReadBytes(5);
-			var dataResult = DataDecoder.TryReadVarint32(bytes);
+			var bytesRead = DataDecoder.TryReadVarint32(bytes, out result);
 
-			if (dataResult.BytesRead == 0)
+			if (bytesRead == 0)
 			{
 				result = default;
 				return false;
 			}
 
-			dataView.Advance(dataResult.BytesRead);
-			result = dataResult.Value;
+			dataView.Advance(bytesRead);
 			return true;
 		}
 
@@ -47,16 +46,15 @@ namespace Zenserdes.Protobuf.Serialization
 			where TDataView : struct, IDataView
 		{
 			var bytes = dataView.ReadBytes(10);
-			var dataResult = DataDecoder.TryReadVarint64(bytes, 0);
+			var bytesRead = DataDecoder.TryReadVarint64(bytes, out result);
 
-			if (dataResult.BytesRead == 0)
+			if (bytesRead == 0)
 			{
 				result = default;
 				return false;
 			}
 
-			dataView.Advance(dataResult.BytesRead);
-			result = dataResult.Value;
+			dataView.Advance(bytesRead);
 			return true;
 		}
 

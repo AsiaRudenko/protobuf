@@ -5,30 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace Zenserdes.Protobuf.Serialization
 {
-	[StructLayout(LayoutKind.Explicit)]
-	public ref struct ProtobufMessageSegment
-	{
-		public ProtobufMessageSegment(byte fieldNumber, byte wireType)
-		{
-			FieldNumber = fieldNumber;
-			WireType = wireType;
-
-			Success = default;
-			Data = default;
-		}
-
-		// TODO: instead of a boolean, have it be an enum so the user can debug why a
-		// given protobuf message didn't deserialize.
-		[FieldOffset(0)] public bool Success;
-
-		[FieldOffset(1)] public byte FieldNumber;
-		[FieldOffset(2)] public byte WireType;
-
-		// extra (1) byte wasted for ideal struct alignment
-
-		[FieldOffset(4)] public ReadOnlySpan<byte> Data;
-	}
-
 	// TODO: once I get the DataStreamer laid out, i can more efficiently optimize
 	// all the data views.
 
@@ -36,10 +12,10 @@ namespace Zenserdes.Protobuf.Serialization
 	/// Can stream the data of a protobuf message until the end.
 	/// </summary>
 	/// <typeparam name="TDataView">The type of data view to use to read the data.</typeparam>
-	public struct DataStreamer<TDataView>
+	public ref struct DataStreamer<TDataView>
 		where TDataView : IDataView
 	{
-		private readonly TDataView _dataView;
+		private TDataView _dataView; // * DO NOT make readonly
 
 		public DataStreamer(TDataView dataView)
 		{
@@ -47,28 +23,36 @@ namespace Zenserdes.Protobuf.Serialization
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public ProtobufMessageSegment NextSegment()
+		public void Advance(int bytes)
+		{
+			_dataView.Advance(bytes);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public byte NextSegment(ref ReadOnlyMemory<byte> data)
 		{
 			// TODO: have special "ReadByte()" method to optimize this case
-			var wireByte = _dataView.ReadBytes(1)[0];
+			var wireBytes = _dataView.ReadBytes(1);
+			if (wireBytes.Length == 0) return default;
+
+			var wireByte = wireBytes[0];
 
 			// TODO: do we really need to do this? it's a waste of instructions if the user
 			// doesn't use it.
-			var fieldNumber = (byte)((wireByte & 0b11111_000) >> 3);
+			var fieldNumber = 0; // (byte)((wireByte & 0b11111_000) >> 3);
 			var wireType = (byte)(wireByte & 0b00000_111);
 
 			_dataView.Advance(1);
 
-			var segment = new ProtobufMessageSegment(fieldNumber, wireType);
-			_lookupActions[wireType](ref this, ref segment);
-			return segment;
+			_lookupActions[wireType](ref this, ref data);
+			return wireByte;
 		}
 
 		// Lookup table stuff
 		//
 		// For memory efficiency, it'd probably be better to put this in a non generic
 		// class, but since there are only 2^3 (8) possible options, we're fine.
-		private delegate void LookupAction(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment);
+		private delegate void LookupAction(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment);
 
 		private static readonly LookupAction[] _lookupActions = new LookupAction[]
 		{
@@ -84,7 +68,7 @@ namespace Zenserdes.Protobuf.Serialization
 		};
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void Fail(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment)
+		private static void Fail(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment)
 		{
 			// we shouldn't need to assign Success, it should already be false.
 			// so we'll avoid setting the field.
@@ -92,12 +76,12 @@ namespace Zenserdes.Protobuf.Serialization
 			// in release, it'd be nice to optimize this function out of the equation as
 			// much as possible.
 #if DEBUG
-			Debug.Assert(segment.Success == false);
+			Debug.Assert(segment.IsEmpty);
 #endif
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void Varint(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment)
+		private static void Varint(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment)
 		{
 			// really, we wish to leave this up to the caller on how it should be decoded.
 			// we cannot accurately make the assumption on whether to use the varint32 or
@@ -105,31 +89,24 @@ namespace Zenserdes.Protobuf.Serialization
 			//
 			// we shall just try to read 10 bytes (varint64 max size), and yield that.
 
-			var data = dataStreamer._dataView.ReadBytes(10);
+			segment = dataStreamer._dataView.ReadBytesToMemory(10);
 
-			if (data.Length == 0)
-			{
-				segment.Success = false;
-				return;
-			}
-
-			dataStreamer._dataView.Advance(10);
-			segment.Data = data;
+			// TODO: figure out exactly how many bytes we need to advance without decoding
+			// dataStreamer._dataView.Advance(r.BytesRead);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void Bit64(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment)
+		private static void Bit64(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment)
 		{
-			var data = dataStreamer._dataView.ReadBytes(8);
+			segment = dataStreamer._dataView.ReadBytesToMemory(8);
 
-			if (data.Length != 8)
+			if (segment.Length < 8)
 			{
-				segment.Success = false;
+				segment = default;
 				return;
 			}
 
 			dataStreamer._dataView.Advance(8);
-			segment.Data = data;
 		}
 
 		// TODO: move somewhere else?
@@ -141,14 +118,14 @@ namespace Zenserdes.Protobuf.Serialization
 		/// </summary>
 		public static int MaximumLengthDelimitedReadSize = 32_000_000;
 
-		private static void LengthDelimited(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment)
+		private static void LengthDelimited(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment)
 		{
 			var lengthBytes = dataStreamer._dataView.ReadBytes(5);
-			var varint = DataDecoder.TryReadVarint32(lengthBytes);
+			var bytesRead = DataDecoder.TryReadVarint32(lengthBytes, out var uLength);
 
-			if (varint.BytesRead == 0)
+			if (bytesRead == 0)
 			{
-				segment.Success = false;
+				//# segment.Success = false;
 				return;
 			}
 
@@ -161,42 +138,38 @@ namespace Zenserdes.Protobuf.Serialization
 			// the data streamer streams data, so it should be up to the caller if the memory
 			// gets allocated or not.
 
-			var uLength = varint.Value;
 			if (uLength >= MaximumLengthDelimitedReadSize)
 			{
-				segment.Success = false;
+				//# segment.Success = false;
 				return;
 			}
 
 			var length = (int)uLength;
 
-			dataStreamer._dataView.Advance(varint.BytesRead);
-			var bytes = dataStreamer._dataView.ReadBytes(length); // TODO: should we read for permanence?
+			dataStreamer._dataView.Advance(bytesRead);
+			segment = dataStreamer._dataView.ReadBytesToMemory(length); // TODO: should we read for permanence?
 
-			if (bytes.Length != length)
+			if (segment.Length < length)
 			{
-				segment.Success = false;
+				segment = default;
 				return;
 			}
 
 			dataStreamer._dataView.Advance(length);
-			segment.Success = true;
-			segment.Data = bytes;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static void Bit32(ref DataStreamer<TDataView> dataStreamer, ref ProtobufMessageSegment segment)
+		private static void Bit32(ref DataStreamer<TDataView> dataStreamer, ref ReadOnlyMemory<byte> segment)
 		{
-			var data = dataStreamer._dataView.ReadBytes(4);
+			segment = dataStreamer._dataView.ReadBytesToMemory(4);
 
-			if (data.Length != 4)
+			if (segment.Length < 4)
 			{
-				segment.Success = false;
+				segment = default;
 				return;
 			}
 
 			dataStreamer._dataView.Advance(4);
-			segment.Data = data;
 		}
 	}
 }

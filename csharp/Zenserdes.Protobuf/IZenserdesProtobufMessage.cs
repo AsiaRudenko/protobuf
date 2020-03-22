@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using System;
 using Zenserdes.Protobuf.Serialization;
 
 namespace Zenserdes.Protobuf
@@ -16,6 +17,6 @@ namespace Zenserdes.Protobuf
 		int SizeHint { get; }
 
 		// TODO: docs
-		void HandleDeserialization(ProtobufMessageSegment segment);
+		int HandleDeserialization(ref ReadOnlyMemory<byte> segment, byte wireByte);
 	}
 }

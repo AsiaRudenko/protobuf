@@ -35,10 +35,10 @@ namespace Zenserdes.Protobuf.Tests.Serialization
 			new byte[] { 0xBE, 0xF7, 0x92, 0x84, 0x0B })]
 		public void Varint32Decode_IsCorrect(uint result, byte[] data)
 		{
-			var decode = DataDecoder.TryReadVarint32(data);
+			var bytesRead = DataDecoder.TryReadVarint32(data, out var value);
 
-			decode.BytesRead.Should().Be(data.Length);
-			decode.Value.Should().Be(result);
+			bytesRead.Should().Be(data.Length);
+			value.Should().Be(result);
 		}
 
 		// test data: https://github.com/protocolbuffers/protobuf/blob/70fc0f0275389a99b0c654778ef937f904921be0/csharp/src/Google.Protobuf.Test/CodedOutputStreamTest.cs#L111-L127
@@ -51,10 +51,10 @@ namespace Zenserdes.Protobuf.Tests.Serialization
 			new byte[] { 0x9B, 0xA8, 0xF9, 0xC2, 0xBB, 0xD6, 0x80, 0x85, 0xA6, 0x01 })]
 		public void Varint64Decode_IsCorrect(ulong result, byte[] data)
 		{
-			var decode = DataDecoder.TryReadVarint64(data, result);
+			var bytesRead = DataDecoder.TryReadVarint64(data, out var value);
 
-			decode.BytesRead.Should().Be(data.Length);
-			decode.Value.Should().Be(result);
+			bytesRead.Should().Be(data.Length);
+			value.Should().Be(result);
 		}
 	}
 }
