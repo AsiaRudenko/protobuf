@@ -212,6 +212,10 @@ namespace Zenserdes.Protobuf
 
 		/// <summary>
 		/// Serializes the given message into a <see cref="Stream"/>.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to serialize.</typeparam>
 		/// <param name="message">The message to serialize.</param>
@@ -227,6 +231,10 @@ namespace Zenserdes.Protobuf
 
 		/// <summary>
 		/// Serializes the given message into a <see cref="Stream"/>.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// <para>
 		/// This overload allows the use of in to prevent copying the struct. It is preferred
 		/// whenever dealing with large structs.
@@ -523,6 +531,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <param name="source">The source of the protobuf data.</param>
@@ -556,6 +568,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// <para>
 		/// This overload takes a generic operator. It is slightly more
 		/// verbose than the non operator overloads. Consider using the alternative,
@@ -595,6 +611,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <typeparam name="TBufferWriter">The type of buffer writer to use.</typeparam>
@@ -614,6 +634,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// <para>
 		/// This overload takes a generic operator. It is slightly more
 		/// verbose than the non operator overloads. Consider using the alternative,
@@ -688,8 +712,8 @@ namespace Zenserdes.Protobuf
 			where TMessage : IMessage
 			where TOperator : struct, IMessageOperator<TMessage>
 		{
-			var dataStreamer = new Serialization.MemoryDataStreamer(source);
-			message = default;
+			var dataStreamer = new MemoryDataStreamer(source);
+			message = default!;
 
 			return default(TOperator).TryDeserialize(ref dataStreamer, ref message);
 		}
@@ -850,6 +874,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <param name="source">The source of the protobuf data.</param>
@@ -886,6 +914,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// <para>
 		/// This overload takes a generic operator. It is slightly more
 		/// verbose than the non operator overloads. Consider using the alternative,
@@ -928,6 +960,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <typeparam name="TBufferWriter">The type of buffer writer to use.</typeparam>
@@ -949,6 +985,10 @@ namespace Zenserdes.Protobuf
 		/// <summary>
 		/// Deserializes a message from a stream source to an instance. This will consume
 		/// the entire stream.
+		/// <para>
+		/// WARNING: At this time, streams may suffer in performance due to lack of buffering.
+		/// Please wrap your streams in a <see cref="BufferedStream"/> before calling this method.
+		/// </para>
 		/// <para>
 		/// This overload takes a generic operator. It is slightly more
 		/// verbose than the non operator overloads. Consider using the alternative,
