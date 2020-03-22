@@ -26,7 +26,7 @@ namespace Zenserdes.Protobuf.Serialization
 		// limit, meaning that this shadow copying is performed. We can avoid the copy
 		// by having the extension methods explicitly take in a reference to the structs.
 
-		public static bool TryReadVarint32<TDataView>(this ref TDataView dataView, out int result)
+		public static bool TryReadVarint32<TDataView>(this ref TDataView dataView, out uint result)
 			where TDataView : struct, IDataView
 		{
 			var bytes = dataView.ReadBytes(5);
@@ -43,11 +43,11 @@ namespace Zenserdes.Protobuf.Serialization
 			return true;
 		}
 
-		public static bool TryReadVarint64<TDataView>(this ref TDataView dataView, out long result)
+		public static bool TryReadVarint64<TDataView>(this ref TDataView dataView, out ulong result)
 			where TDataView : struct, IDataView
 		{
 			var bytes = dataView.ReadBytes(10);
-			var dataResult = DataDecoder.TryReadVarint64(bytes);
+			var dataResult = DataDecoder.TryReadVarint64(bytes, 0);
 
 			if (dataResult.BytesRead == 0)
 			{

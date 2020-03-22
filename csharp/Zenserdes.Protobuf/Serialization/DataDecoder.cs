@@ -26,95 +26,118 @@ namespace Zenserdes.Protobuf.Serialization
 		// based on Google DecodeZigZag32 & DecodeZizZag64
 		// https://github.com/protocolbuffers/protobuf/blob/master/csharp/src/Google.Protobuf/CodedInputStream.cs#L1297-L1323
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int DecodeZigZag32(int value)
-			=> (value >> 1) ^ -(value & 1);
+		public static int DecodeZigZag32(uint value)
+			=> (int)(value >> 1) ^ -((int)value & 1);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static long DecodeZigZag64(long value)
-			=> (value >> 1) & -(value & 1);
+		public static long DecodeZigZag64(ulong value)
+			=> (long)(value >> 1) ^ -(long)(value & 1);
 
 		// varint implementation loosely based off of microsoft's implementation
 		// https://source.dot.net/#System.Private.CoreLib/BinaryReader.cs,587
 		// there might be some faster method that reads it in reverse, i dunno
-		public static DataDecodeResult<int> TryReadVarint32(ReadOnlySpan<byte> bytes)
+		public static DataDecodeResult<uint> TryReadVarint32(ReadOnlySpan<byte> bytes)
 		{
-			if (bytes.Length == 0) return new DataDecodeResult<int>(0);
+			if (bytes.Length == 0) return default;
 
 			byte b;
-			int result;
+			uint result;
 
 			// to prevent branching, instead of using some kind of loop, we can just unroll
 			// the whole thing
 			b = bytes[0];
-			result = b & 0b01111111;
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<int>(1, result); // if there's not more, we're done
+			result = b & 0b01111111u;
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<uint>(1, result); // if there's not more, we're done
 
 			// TODO: these length checks could be costing us some performance, perhaps they
 			// could be minified somehow?
 			if (bytes.Length < 1) return default; // if there's suppose to be more, we failed
 
 			b = bytes[1];
-			result |= (b & 0b01111111) << 7;
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<int>(2, result);
+			result |= unchecked((b & 0b01111111u) << 7);
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<uint>(2, result);
 			if (bytes.Length < 2) return default;
 
 			b = bytes[2];
-			result |= (b & 0b01111111) << (7 * 2);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<int>(3, result);
+			result |= unchecked((b & 0b01111111u) << (7 * 2));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<uint>(3, result);
 			if (bytes.Length < 3) return default;
 
 			b = bytes[3];
-			result |= (b & 0b01111111) << (7 * 3);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<int>(4, result);
+			result |= unchecked((b & 0b01111111u) << (7 * 3));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<uint>(4, result);
 			if (bytes.Length < 4) return default;
 
 			b = bytes[4];
-			result |= (b & 0b01111111) << (7 * 4);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<int>(5, result);
+			result |= unchecked((b & 0b01111111u) << (7 * 4));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<uint>(5, result);
 			return default; // can't read any more
 		}
 
-		public static DataDecodeResult<long> TryReadVarint64(ReadOnlySpan<byte> bytes)
+		public static DataDecodeResult<ulong> TryReadVarint64(ReadOnlySpan<byte> bytes, ulong k)
 		{
-			if (bytes.Length == 0) return new DataDecodeResult<long>(0);
+			if (bytes.Length == 0) return default;
 
 			byte b;
-			int result;
+			ulong result;
 
-			// TODO: perhaps code size could be shrank? for now it's a moot point
-
-			/* COPIED & PASTED SECTION START */
+			// to prevent branching, instead of using some kind of loop, we can just unroll
+			// the whole thing
 			b = bytes[0];
-			result = b & 0b01111111;
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<long>(1, result); // if there's not more, we're done
+			result = b & 0b01111111uL;
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(1, result); // if there's not more, we're done
+
+			// TODO: these length checks could be costing us some performance, perhaps they
+			// could be minified somehow?
 			if (bytes.Length < 1) return default; // if there's suppose to be more, we failed
 
 			b = bytes[1];
-			result |= (b & 0b01111111) << 7;
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<long>(2, result);
+			result |= unchecked((b & 0b01111111uL) << 7);
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(2, result);
 			if (bytes.Length < 2) return default;
 
 			b = bytes[2];
-			result |= (b & 0b01111111) << (7 * 2);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<long>(3, result);
+			result |= unchecked((b & 0b01111111uL) << (7 * 2));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(3, result);
 			if (bytes.Length < 3) return default;
 
 			b = bytes[3];
-			result |= (b & 0b01111111) << (7 * 3);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<long>(4, result);
+			result |= unchecked((b & 0b01111111uL) << (7 * 3));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(4, result);
 			if (bytes.Length < 4) return default;
 
 			b = bytes[4];
-			result |= (b & 0b01111111) << (7 * 4);
-			if ((b & 0b10000000) == 0) return new DataDecodeResult<long>(5, result);
-			/* COPIED & PASTED SECTION END */
+			result |= unchecked((b & 0b01111111uL) << (7 * 4));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(5, result);
+			if (bytes.Length < 5) return default;
 
-			// still more left - use the ReadVarint32 implementation
-			var remaining = TryReadVarint32(bytes.Slice(5));
-			if (remaining.BytesRead == 0) return default;
+			// note to the reader: i *did* try to reuse the above method and do bit shifting
+			// and whatnot, and it turned out to be a massive pain, so... here we are
 
-			long longTotal = (result << (7 * remaining.BytesRead)) | remaining.Value;
-			return new DataDecodeResult<long>(5 + remaining.BytesRead, longTotal);
+			b = bytes[5];
+			result |= unchecked((b & 0b01111111uL) << (7 * 5));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(6, result);
+			if (bytes.Length < 6) return default;
+
+			b = bytes[6];
+			result |= unchecked((b & 0b01111111uL) << (7 * 6));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(7, result);
+			if (bytes.Length < 7) return default;
+
+			b = bytes[7];
+			result |= unchecked((b & 0b01111111uL) << (7 * 7));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(8, result);
+			if (bytes.Length < 8) return default;
+
+			b = bytes[8];
+			result |= unchecked((b & 0b01111111uL) << (7 * 8));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(9, result);
+			if (bytes.Length < 9) return default;
+
+			b = bytes[9];
+			result |= unchecked((b & 0b01111111uL) << (7 * 9));
+			if ((b & 0b10000000) == 0) return new DataDecodeResult<ulong>(10, result);
+			return default; // no more to read
 		}
 	}
 }
