@@ -1,0 +1,8 @@
+{
+	"profiles": {
+		"Zenserdes.Protobuf.ZGen": {
+			"commandName": "Project",
+			"commandLineArgs": "--input-proto sample.proto --output-directory here --namespace Provided.Namespace"
+		}
+	}
+}
