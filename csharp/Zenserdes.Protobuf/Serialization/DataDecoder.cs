@@ -22,9 +22,9 @@ namespace Zenserdes.Protobuf.Serialization
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool TryReadVarint32(ReadOnlySpan<byte> span, ref int offset, ref uint result)
 		{
-			if (span.IsEmpty) return false;
+			if (offset >= span.Length) return false;
 			var b = span[offset++];
-			result |= (b & 0b01111111u);
+			result = b & 0b01111111u;
 
 			if ((b & 0b1000_0000) == 0) return true;
 
@@ -48,9 +48,9 @@ namespace Zenserdes.Protobuf.Serialization
 
 		public static bool TryReadVarint64(ReadOnlySpan<byte> span, ref int offset, ref ulong result)
 		{
-			if (span.IsEmpty) return false;
+			if (offset >= span.Length) return false;
 			var b = span[offset++];
-			result |= (b & 0b01111111uL);
+			result = b & 0b01111111uL;
 
 			if ((b & 0b1000_0000) == 0) return true;
 
