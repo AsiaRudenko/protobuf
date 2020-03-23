@@ -90,8 +90,47 @@ namespace Zenserdes.Protobuf
 			[NotNull] TMessage message,
 			bool longRetention = true
 		)
+			where TMessage : struct, IMessageAndOperator<TMessage>
+			=> Serialize<TMessage, TMessage>(message, longRetention);
+
+		/// <summary>
+		/// Serializes the given message into bytes.
+		/// <para>
+		/// This overload takes a generic operator. It is slightly more
+		/// verbose than the non operator overloads. Consider using the alternative,
+		/// <see cref="Serialize{TMessage}(TMessage, bool)"/>
+		/// </para>
+		/// <para>
+		/// This method is provided as a comfort method. It is recommended to
+		/// use an overload to be more specific with your resources, such as
+		/// <see cref="Serialize{TMessage, TBufferWriter}(TMessage, TBufferWriter)"/>.
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to serialize.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="longRetention">If the data returned to you should be persistent
+		/// after multiple de/serialization calls. If this is <c>false</c>, then any data
+		/// you use or receive after a second call to any public API method to Zenserdes.Protobuf
+		/// will make the initial data you received stale.
+		/// <para>
+		/// An example of when it'd be perfect to disable long retention is during benchmarks,
+		/// as on each iteration of the benchmark the data used is discareded and not needed,
+		/// meaning that it won't matter if the previously handled data is stale. If many
+		/// operations are being done in succession where the previous data is discarded
+		/// (such that it won't matter if the old data is stale), disabling long retention may
+		/// yield huge performance boosts, by preventing an <see cref="ArrayBufferWriter{T}"/>
+		/// allocation as well as preventing array allocations since they will be reused.
+		/// </para></param>
+		/// <returns>The serialized protobuf message.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Memory<byte> Serialize<TMessage, TOperator>
+		(
+			[NotNull] TMessage message,
+			bool longRetention = true
+		)
 			where TMessage : IMessage
-			=> Serialize(message, BufferForRetention(longRetention, sizeHint: message.SizeHint));
+			where TOperator : struct, IMessageOperator<TMessage>
+			=> Serialize<TMessage, TOperator, ArrayBufferWriter<byte>>(message, BufferForRetention(longRetention, sizeHint: message.SizeHint));
 
 		/// <summary>
 		/// Serializes the given message into bytes.
@@ -127,8 +166,51 @@ namespace Zenserdes.Protobuf
 			[NotNull] in TMessage message,
 			bool longRetention = true
 		)
+			where TMessage : struct, IMessageAndOperator<TMessage>
+			=> Serialize<TMessage, TMessage>(in message, longRetention);
+
+		/// <summary>
+		/// Serializes the given message into bytes.
+		/// <para>
+		/// This overload takes a generic operator. It is slightly more
+		/// verbose than the non operator overloads. Consider using the alternative,
+		/// <see cref="Serialize{TMessage}(in TMessage, bool)"/>
+		/// </para>
+		/// <para>
+		/// This overload allows the use of in to prevent copying the struct. It is preferred
+		/// whenever dealing with large structs.
+		/// </para>
+		/// <para>
+		/// This method is provided as a comfort method. It is recommended to
+		/// use an overload to be more specific with your resources, such as
+		/// <see cref="Serialize{TMessage, TBufferWriter}(TMessage, TBufferWriter)"/>.
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to serialize.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="longRetention">If the data returned to you should be persistent
+		/// after multiple de/serialization calls. If this is <c>false</c>, then any data
+		/// you use or receive after a second call to any public API method to Zenserdes.Protobuf
+		/// will make the initial data you received stale.
+		/// <para>
+		/// An example of when it'd be perfect to disable long retention is during benchmarks,
+		/// as on each iteration of the benchmark the data used is discareded and not needed,
+		/// meaning that it won't matter if the previously handled data is stale. If many
+		/// operations are being done in succession where the previous data is discarded
+		/// (such that it won't matter if the old data is stale), disabling long retention may
+		/// yield huge performance boosts, by preventing an <see cref="ArrayBufferWriter{T}"/>
+		/// allocation as well as preventing array allocations since they will be reused.
+		/// </para></param>
+		/// <returns>The serialized protobuf message.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Memory<byte> Serialize<TMessage, TOperator>
+		(
+			[NotNull] in TMessage message,
+			bool longRetention = true
+		)
 			where TMessage : IMessage
-			=> Serialize(in message, BufferForRetention(longRetention, sizeHint: message.SizeHint));
+			where TOperator : struct, IMessageOperator<TMessage>
+			=> Serialize<TMessage, TOperator, ArrayBufferWriter<byte>>(in message, BufferForRetention(longRetention, sizeHint: message.SizeHint));
 
 		/// <summary>
 		/// Serializes the given message into bytes.
@@ -143,11 +225,46 @@ namespace Zenserdes.Protobuf
 		public static Memory<byte> Serialize<TMessage, TBufferWriter>
 		(
 			[NotNull] TMessage message,
-			[NotNull] TBufferWriter bufferWriter
+			[NotNull] TBufferWriter bufferWriter,
+			int exactSize = -1
+		)
+			where TMessage : struct, IMessageAndOperator<TMessage>
+			where TBufferWriter : IBufferWriter<byte>
+			=> Serialize<TMessage, TMessage, TBufferWriter>(message, bufferWriter, exactSize);
+
+		/// <summary>
+		/// Serializes the given message into bytes.
+		/// <para>
+		/// This overload takes a generic operator. It is slightly more
+		/// verbose than the non operator overloads. Consider using the alternative,
+		/// <see cref="Serialize{TMessage, TBufferWriter}(TMessage, TBufferWriter)"/>
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type message to serialize.</typeparam>
+		/// <typeparam name="TBufferWriter">The type of buffer writer to use.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="bufferWriter">The buffer writer to use.
+		/// If none is specified, <see cref="CachedBufferWriter"/> is used.</param>
+		/// <returns>The serialized protobuf message.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Memory<byte> Serialize<TMessage, TOperator, TBufferWriter>
+		(
+			[NotNull] TMessage message,
+			[NotNull] TBufferWriter bufferWriter,
+			int exactSize = -1
 		)
 			where TMessage : IMessage
+			where TOperator : struct, IMessageOperator<TMessage>
 			where TBufferWriter : IBufferWriter<byte>
-			=> message.Serialize(bufferWriter);
+		{
+			var size = GetSize<TMessage, TOperator>(message, specifiedSize: exactSize);
+			var buffer = bufferWriter.GetMemory(size);
+
+			message.Serialize(new MemoryScriber(buffer));
+
+			bufferWriter.Advance(size);
+			return buffer;
+		}
 
 		/// <summary>
 		/// Serializes the given message into bytes.
@@ -166,11 +283,50 @@ namespace Zenserdes.Protobuf
 		public static Memory<byte> Serialize<TMessage, TBufferWriter>
 		(
 			[NotNull] in TMessage message,
-			[NotNull] TBufferWriter bufferWriter
+			[NotNull] TBufferWriter bufferWriter,
+			int exactSize = -1
+		)
+			where TMessage : struct, IMessageAndOperator<TMessage>
+			where TBufferWriter : IBufferWriter<byte>
+			=> Serialize<TMessage, TMessage, TBufferWriter>(in message, bufferWriter, exactSize);
+
+		/// <summary>
+		/// Serializes the given message into bytes.
+		/// <para>
+		/// This overload takes a generic operator. It is slightly more
+		/// verbose than the non operator overloads. Consider using the alternative,
+		/// <see cref="Serialize{TMessage, TBufferWriter}(in TMessage, TBufferWriter)"/>
+		/// </para>
+		/// <para>
+		/// This overload allows the use of in to prevent copying the struct. It is preferred
+		/// whenever dealing with large structs.
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type message to serialize.</typeparam>
+		/// <typeparam name="TBufferWriter">The type of buffer writer to use.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="bufferWriter">The buffer writer to use.
+		/// If none is specified, <see cref="CachedBufferWriter"/> is used.</param>
+		/// <returns>The serialized protobuf message.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Memory<byte> Serialize<TMessage, TOperator, TBufferWriter>
+		(
+			[NotNull] in TMessage message,
+			[NotNull] TBufferWriter bufferWriter,
+			int exactSize = -1
 		)
 			where TMessage : IMessage
+			where TOperator : struct, IMessageOperator<TMessage>
 			where TBufferWriter : IBufferWriter<byte>
-			=> message.Serialize(bufferWriter);
+		{
+			var size = GetSize<TMessage, TOperator>(in message, specifiedSize: exactSize);
+			var buffer = bufferWriter.GetMemory(size);
+
+			message.Serialize(new MemoryScriber(buffer));
+
+			bufferWriter.Advance(size);
+			return buffer;
+		}
 
 		/// <summary>
 		/// Serializes the given message into a span of bytes.
@@ -187,7 +343,7 @@ namespace Zenserdes.Protobuf
 			Span<byte> target
 		)
 			where TMessage : IMessage
-			=> message.Serialize(target);
+			=> message.Serialize(new SpanScriber(target));
 
 		/// <summary>
 		/// Serializes the given message into a span of bytes.
@@ -208,7 +364,45 @@ namespace Zenserdes.Protobuf
 			Span<byte> target
 		)
 			where TMessage : IMessage
-			=> message.Serialize(target);
+			=> message.Serialize(new SpanScriber(target));
+
+		/// <summary>
+		/// Serializes the given message into a memory of bytes.
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to serialize.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="target">The target bytes to serialize into.</param>
+		/// <returns>False if an incomplete message was written, true if the message was
+		/// fully written.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void Serialize<TMessage>
+		(
+			[NotNull] TMessage message,
+			Memory<byte> target
+		)
+			where TMessage : IMessage
+			=> message.Serialize(new MemoryScriber(target));
+
+		/// <summary>
+		/// Serializes the given message into a memory of bytes.
+		/// <para>
+		/// This overload allows the use of in to prevent copying the struct. It is preferred
+		/// whenever dealing with large structs.
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to serialize.</typeparam>
+		/// <param name="message">The message to serialize.</param>
+		/// <param name="target">The target bytes to serialize into.</param>
+		/// <returns>False if an incomplete message was written, true if the message was
+		/// fully written.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool Serialize<TMessage>
+		(
+			[NotNull] in TMessage message,
+			Memory<byte> target
+		)
+			where TMessage : IMessage
+			=> message.Serialize(new MemoryScriber(target));
 
 		/// <summary>
 		/// Serializes the given message into a <see cref="Stream"/>.
@@ -227,7 +421,7 @@ namespace Zenserdes.Protobuf
 			[NotNull] Stream target
 		)
 			where TMessage : IMessage
-			=> message.Serialize(target);
+			=> message.Serialize(new StreamScriber(target));
 
 		/// <summary>
 		/// Serializes the given message into a <see cref="Stream"/>.
@@ -250,7 +444,7 @@ namespace Zenserdes.Protobuf
 			[NotNull] Stream target
 		)
 			where TMessage : IMessage
-			=> message.Serialize(target);
+			=> message.Serialize(new StreamScriber(target));
 
 		/// <summary>
 		/// Returns the exact size of the serialized message in bytes.
@@ -1037,6 +1231,32 @@ namespace Zenserdes.Protobuf
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static ArrayBufferWriter<byte> BufferForRetention(bool longRetention, int sizeHint = 256)
 			=> longRetention ? new ArrayBufferWriter<byte>(sizeHint) : CachedBufferWriter;
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int GetSize<TMessage, TOperator>(TMessage message, int specifiedSize = -1)
+			where TMessage : IMessage
+			where TOperator : struct, IMessageOperator<TMessage>
+		{
+			if (specifiedSize == -1)
+			{
+				return (int)ZenserdesProtobuf.ExactSize<TMessage, TOperator>(message);
+			}
+
+			return specifiedSize;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static int GetSize<TMessage, TOperator>(in TMessage message, int specifiedSize = -1)
+			where TMessage : IMessage
+			where TOperator : struct, IMessageOperator<TMessage>
+		{
+			if (specifiedSize == -1)
+			{
+				return (int)ZenserdesProtobuf.ExactSize<TMessage, TOperator>(in message);
+			}
+
+			return specifiedSize;
+		}
 
 		[DoesNotReturn]
 		[MethodImpl(MethodImplOptions.NoInlining)]

@@ -1,8 +1,6 @@
-﻿#nullable enable
+﻿using Zenserdes.Protobuf.Serialization;
 
-using System;
-using System.Buffers;
-using System.IO;
+#nullable enable
 
 namespace Zenserdes.Protobuf
 {
@@ -21,11 +19,10 @@ namespace Zenserdes.Protobuf
 
 		// TODO: use more specific data types
 		// for now, these serve as stubs
-		Memory<byte> Serialize<TBufferWriter>(TBufferWriter bufferWriter)
-			where TBufferWriter : IBufferWriter<byte>;
+		bool Serialize(MemoryScriber target);
 
-		bool Serialize(Span<byte> target);
+		bool Serialize(SpanScriber target);
 
-		void Serialize(Stream target);
+		void Serialize(StreamScriber target);
 	}
 }
