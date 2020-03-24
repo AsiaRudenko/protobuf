@@ -10,12 +10,22 @@ using System.Text;
 using Humanizer;
 
 using Zenserdes.Protobuf.Serialization;
+using Zenserdes.Protobuf;
 
 #nullable enable
 
 
 namespace Zenserdes.Protobuf.ZGen
 {
+	internal struct IWantToUseNameof : IMessage
+	{
+		public int SizeHint => throw new NotImplementedException();
+
+		public bool Serialize(MemoryScriber target) => throw new NotImplementedException();
+		public bool Serialize(SpanScriber target) => throw new NotImplementedException();
+		public void Serialize(StreamScriber target) => throw new NotImplementedException();
+	}
+
 	public class ProtobufCodeGenerator
 	{
 		private readonly IndentedTextWriter _writer;
@@ -146,49 +156,47 @@ namespace Zenserdes.Protobuf.ZGen
 
 			_writer.WriteLine();
 
-			_writer.WriteLine("public bool Serialize(" + typeof(SpanScriber).FullyQualified() + " target)");
-			_writer.WriteLine('{');
-			_writer.Indent++;
-			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
-			_writer.Indent--;
-			_writer.WriteLine('}');
+			GenerateMethod(typeof(bool), typeof(IMessage), null, nameof(IMessage.Serialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"{typeof(SpanScriber).FullyQualified()} target");
 
 			_writer.WriteLine();
 
-			_writer.WriteLine("public bool Serialize(" + typeof(MemoryScriber).FullyQualified() + " target)");
-			_writer.WriteLine('{');
-			_writer.Indent++;
-			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
-			_writer.Indent--;
-			_writer.WriteLine('}');
+			GenerateMethod(typeof(bool), typeof(IMessage), null, nameof(IMessage.Serialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"{typeof(MemoryScriber).FullyQualified()} target");
 
 			_writer.WriteLine();
 
-			_writer.WriteLine("public bool Serialize(" + typeof(StreamScriber).FullyQualified() + " target)");
-			_writer.WriteLine('{');
-			_writer.Indent++;
-			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
-			_writer.Indent--;
-			_writer.WriteLine('}');
+			GenerateMethod(typeof(bool), typeof(IMessage), null, nameof(IMessage.Serialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"{typeof(StreamScriber).FullyQualified()} target");
 
 			_writer.WriteLine();
 
-			_writer.WriteLine($"public ulong ExactSize(in {fullyQualifiedMessageName} message)");
-			_writer.WriteLine('{');
-			_writer.Indent++;
-			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
-			_writer.Indent--;
-			_writer.WriteLine('}');
+			GenerateMethod(typeof(ulong), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessage.Serialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"in {fullyQualifiedMessageName} message");
 
 			_writer.WriteLine();
 
-			_writer.WriteLine($"public ulong ExactSize({fullyQualifiedMessageName} message)");
-			_writer.WriteLine('{');
-			_writer.Indent++;
-			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
-			_writer.Indent--;
-			_writer.WriteLine('}');
+			GenerateMethod(typeof(ulong), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessage.Serialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"{fullyQualifiedMessageName} message");
 
+			_writer.WriteLine();
+
+			GenerateMethod(typeof(bool), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessageOperator<IWantToUseNameof>.TryDeserialize), () =>
+			{
+				_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+			}, $"{typeof(SpanDataStreamer<>).FullyQualified(fullyQualifiedMessageName)} message");
+
+			/*
 			_writer.WriteLine();
 
 			_writer.WriteLine($"public bool TryDeserialize(ref {typeof(MemoryDataStreamer).FullyQualified()} dataStreamer, ref {fullyQualifiedMessageName} instance)");
@@ -216,7 +224,7 @@ namespace Zenserdes.Protobuf.ZGen
 			_writer.Indent++;
 			_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
 			_writer.Indent--;
-			_writer.WriteLine('}');
+			_writer.WriteLine('}');*/
 
 			_writer.Indent--;
 			_writer.WriteLine('}');
@@ -288,6 +296,36 @@ namespace Zenserdes.Protobuf.ZGen
 			_writer.WriteLine('}');
 		}
 
+		public void GenerateMethod(Type returnType, Type interfaceType, string[]? genericArgsReplacements, string methodName, Action body, params string[] arguments)
+		{
+			_writer.Write("public ");
+			_writer.Write(returnType.FullyQualified());
+			_writer.Write(' ');
+			_writer.Write(interfaceType.FullyQualified(genericArgsReplacements ?? Array.Empty<string>()));
+			_writer.Write('.');
+			_writer.Write(methodName);
+			_writer.Write('(');
+
+			foreach (var (argument, isLast) in arguments.FlagLast())
+			{
+				_writer.Write(argument);
+
+				if (!isLast)
+				{
+					_writer.Write(", ");
+				}
+			}
+
+			_writer.WriteLine(')');
+			_writer.WriteLine('{');
+			_writer.Indent++;
+
+			body();
+
+			_writer.Indent--;
+			_writer.WriteLine('}');
+		}
+
 		public string StringTypeOf(FieldDescriptorProto field)
 		{
 			var type = field.TypeOf();
@@ -334,7 +372,13 @@ namespace Zenserdes.Protobuf.ZGen
 		=> field.type switch
 		{
 			FieldDescriptorProto.Type.TypeBool => typeof(bool),
+			FieldDescriptorProto.Type.TypeSint32 => typeof(int),
 			FieldDescriptorProto.Type.TypeInt32 => typeof(int),
+			FieldDescriptorProto.Type.TypeUint32 => typeof(uint),
+			FieldDescriptorProto.Type.TypeSint64 => typeof(long),
+			FieldDescriptorProto.Type.TypeInt64 => typeof(long),
+			FieldDescriptorProto.Type.TypeUint64 => typeof(ulong),
+			FieldDescriptorProto.Type.TypeDouble => typeof(double),
 			FieldDescriptorProto.Type.TypeString => typeof(ReadOnlyMemory<byte>),
 			FieldDescriptorProto.Type.TypeBytes => typeof(ReadOnlyMemory<byte>),
 			_ => typeof(object)
@@ -397,6 +441,7 @@ namespace Zenserdes.Protobuf.ZGen
 			[typeof(long)] = "long",
 			[typeof(ulong)] = "ulong",
 			[typeof(bool)] = "bool",
+			[typeof(double)] = "double",
 			[typeof(string)] = "string",
 			[typeof(object)] = "object",
 		};

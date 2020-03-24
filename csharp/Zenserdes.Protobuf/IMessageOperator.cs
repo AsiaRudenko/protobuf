@@ -20,7 +20,8 @@ namespace Zenserdes.Protobuf
 
 		ulong ExactSize(TMessage message);
 
-		bool TryDeserialize(ref MemoryDataStreamer dataStreamer, ref TMessage instance);
+		bool TryDeserialize<TBufferWriter>(ref MemoryDataStreamer<TBufferWriter> dataStreamer, ref TMessage instance)
+			where TBufferWriter : IBufferWriter<byte>;
 
 		bool TryDeserialize<TBufferWriter>(ref SpanDataStreamer<TBufferWriter> dataStreamer, ref TMessage instance)
 			where TBufferWriter : IBufferWriter<byte>;
