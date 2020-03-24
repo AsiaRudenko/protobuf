@@ -1,6 +1,7 @@
 ﻿using BenchmarkDotNet.Attributes;
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -35,7 +36,7 @@ namespace Zenserdes.Protobuf.Benchmarks
 		public SearchRequest Deserialize()
 		{
 			var request = default(SearchRequest);
-			var streamer = new MemoryDataStreamer(_payload);
+			var streamer = new MemoryDataStreamer<ArrayBufferWriter<byte>>(_payload, Zenserdes.Protobuf.ZenserdesProtobuf.CachedBufferWriter);
 
 			var success = SearchRequest.TryDeserialize(ref streamer, ref request);
 			Debug.Assert(success);
@@ -53,7 +54,8 @@ namespace Zenserdes.Protobuf.Benchmarks
 		public int ResultsPerPage { get; set; }
 
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		public static bool TryDeserialize(ref MemoryDataStreamer streamer, ref SearchRequest instance)
+		public static bool TryDeserialize<TBufferWriter>(ref MemoryDataStreamer<TBufferWriter> streamer, ref SearchRequest instance)
+			where TBufferWriter : IBufferWriter<byte>
 		{
 			byte wireByte = 0;
 
@@ -77,7 +79,8 @@ namespace Zenserdes.Protobuf.Benchmarks
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool SetQuery(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
+		private static bool SetQuery<TBufferWriter>(ref SearchRequest searchRequest, ref MemoryDataStreamer<TBufferWriter> streamer)
+			where TBufferWriter : IBufferWriter<byte>
 		{
 			uint length = 0;
 
@@ -92,7 +95,8 @@ namespace Zenserdes.Protobuf.Benchmarks
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool SetPageNumber(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
+		private static bool SetPageNumber<TBufferWriter>(ref SearchRequest searchRequest, ref MemoryDataStreamer<TBufferWriter> streamer)
+			where TBufferWriter : IBufferWriter<byte>
 		{
 			uint result = 0;
 			if (!DataDecoder.TryReadVarint32(streamer.ReadOnlySpan, ref streamer.Position, ref result))
@@ -105,7 +109,8 @@ namespace Zenserdes.Protobuf.Benchmarks
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static bool SetResultsPerPage(ref SearchRequest searchRequest, ref MemoryDataStreamer streamer)
+		private static bool SetResultsPerPage<TBufferWriter>(ref SearchRequest searchRequest, ref MemoryDataStreamer<TBufferWriter> streamer)
+			where TBufferWriter : IBufferWriter<byte>
 		{
 			uint result = 0;
 			if (!DataDecoder.TryReadVarint32(streamer.ReadOnlySpan, ref streamer.Position, ref result))

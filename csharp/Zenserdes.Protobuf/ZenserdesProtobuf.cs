@@ -869,6 +869,19 @@ namespace Zenserdes.Protobuf
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <param name="source">The source of bytes to deserialize from.</param>
 		/// <param name="message">The message, if the payload was deserialized.</param>
+		/// <param name="longRetention">If the data returned to you should be persistent
+		/// after multiple de/serialization calls. If this is <c>false</c>, then any data
+		/// you use or receive after a second call to any public API method to Zenserdes.Protobuf
+		/// will make the initial data you received stale.
+		/// <para>
+		/// An example of when it'd be perfect to disable long retention is during benchmarks,
+		/// as on each iteration of the benchmark the data used is discareded and not needed,
+		/// meaning that it won't matter if the previously handled data is stale. If many
+		/// operations are being done in succession where the previous data is discarded
+		/// (such that it won't matter if the old data is stale), disabling long retention may
+		/// yield huge performance boosts, by preventing an <see cref="ArrayBufferWriter{T}"/>
+		/// allocation as well as preventing array allocations since they will be reused.
+		/// </para></param>
 		/// <returns>True if the payload was deserialized, false if it wasn't.</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool TryDeserialize<TMessage>
@@ -877,22 +890,70 @@ namespace Zenserdes.Protobuf
 			// a span to a memory, and the TMessage might have fields that require
 			// ROM<byte>s.
 			ReadOnlyMemory<byte> source,
+			[MaybeNullWhen(false)] out TMessage message,
+			bool longRetention = true
+		)
+			where TMessage : struct, IMessageAndOperator<TMessage>
+			=> TryDeserialize<TMessage, TMessage>(source, out message, longRetention);
+
+		/// <summary>
+		/// Deserializes a message into its representation from a source of bytes.
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
+		/// <param name="source">The source of bytes to deserialize from.</param>
+		/// <param name="message">The message, if the payload was deserialized.</param>
+		/// <param name="longRetention">If the data returned to you should be persistent
+		/// after multiple de/serialization calls. If this is <c>false</c>, then any data
+		/// you use or receive after a second call to any public API method to Zenserdes.Protobuf
+		/// will make the initial data you received stale.
+		/// <para>
+		/// An example of when it'd be perfect to disable long retention is during benchmarks,
+		/// as on each iteration of the benchmark the data used is discareded and not needed,
+		/// meaning that it won't matter if the previously handled data is stale. If many
+		/// operations are being done in succession where the previous data is discarded
+		/// (such that it won't matter if the old data is stale), disabling long retention may
+		/// yield huge performance boosts, by preventing an <see cref="ArrayBufferWriter{T}"/>
+		/// allocation as well as preventing array allocations since they will be reused.
+		/// </para></param>
+		/// <returns>True if the payload was deserialized, false if it wasn't.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool TryDeserialize<TMessage, TBufferWriter>
+		(
+			// the reason we are not accepting spans is because you can't go from
+			// a span to a memory, and the TMessage might have fields that require
+			// ROM<byte>s.
+			ReadOnlyMemory<byte> source,
+			[NotNull] TBufferWriter bufferWriter,
 			[MaybeNullWhen(false)] out TMessage message
 		)
 			where TMessage : struct, IMessageAndOperator<TMessage>
-			=> TryDeserialize<TMessage, TMessage>(source, out message);
+			where TBufferWriter : IBufferWriter<byte>
+			=> TryDeserialize<TMessage, TMessage, TBufferWriter>(source, bufferWriter, out message);
 
 		/// <summary>
 		/// Deserializes a message into its representation from a source of bytes.
 		/// <para>
 		/// This overload takes a generic operator. It is slightly more
 		/// verbose than the non operator overloads. Consider using the alternative,
-		/// <see cref="TryDeserialize{TMessage}(ReadOnlyMemory{byte})"/>
+		/// <see cref="TryDeserialize{TMessage}(ReadOnlyMemory{byte}, out TMessage, bool)"/>
 		/// </para>
 		/// </summary>
 		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
 		/// <param name="source">The source of bytes to deserialize from.</param>
 		/// <param name="message">The message, if the payload was deserialized.</param>
+		/// <param name="longRetention">If the data returned to you should be persistent
+		/// after multiple de/serialization calls. If this is <c>false</c>, then any data
+		/// you use or receive after a second call to any public API method to Zenserdes.Protobuf
+		/// will make the initial data you received stale.
+		/// <para>
+		/// An example of when it'd be perfect to disable long retention is during benchmarks,
+		/// as on each iteration of the benchmark the data used is discareded and not needed,
+		/// meaning that it won't matter if the previously handled data is stale. If many
+		/// operations are being done in succession where the previous data is discarded
+		/// (such that it won't matter if the old data is stale), disabling long retention may
+		/// yield huge performance boosts, by preventing an <see cref="ArrayBufferWriter{T}"/>
+		/// allocation as well as preventing array allocations since they will be reused.
+		/// </para></param>
 		/// <returns>True if the payload was deserialized, false if it wasn't.</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool TryDeserialize<TMessage, TOperator>
@@ -901,12 +962,40 @@ namespace Zenserdes.Protobuf
 			// a span to a memory, and the TMessage might have fields that require
 			// ROM<byte>s.
 			ReadOnlyMemory<byte> source,
+			[MaybeNullWhen(false)] out TMessage message,
+			bool longRetention = true
+		)
+			where TMessage : IMessage
+			where TOperator : struct, IMessageOperator<TMessage>
+			=> TryDeserialize<TMessage, TOperator, ArrayBufferWriter<byte>>(source, BufferForRetention(longRetention), out message);
+
+		/// <summary>
+		/// Deserializes a message into its representation from a source of bytes.
+		/// <para>
+		/// This overload takes a generic operator. It is slightly more
+		/// verbose than the non operator overloads. Consider using the alternative,
+		/// <see cref="TryDeserialize{TMessage, TBufferWriter}(ReadOnlyMemory{byte}, TBufferWriter, out TMessage)"/>
+		/// </para>
+		/// </summary>
+		/// <typeparam name="TMessage">The type of message to deserialize.</typeparam>
+		/// <param name="source">The source of bytes to deserialize from.</param>
+		/// <param name="message">The message, if the payload was deserialized.</param>
+		/// <returns>True if the payload was deserialized, false if it wasn't.</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool TryDeserialize<TMessage, TOperator, TBufferWriter>
+		(
+			// the reason we are not accepting spans is because you can't go from
+			// a span to a memory, and the TMessage might have fields that require
+			// ROM<byte>s.
+			ReadOnlyMemory<byte> source,
+			[NotNull] TBufferWriter bufferWriter,
 			[MaybeNullWhen(false)] out TMessage message
 		)
 			where TMessage : IMessage
 			where TOperator : struct, IMessageOperator<TMessage>
+			where TBufferWriter : IBufferWriter<byte>
 		{
-			var dataStreamer = new MemoryDataStreamer(source);
+			var dataStreamer = new MemoryDataStreamer<TBufferWriter>(source, bufferWriter);
 			message = default!;
 
 			return default(TOperator).TryDeserialize(ref dataStreamer, ref message);
