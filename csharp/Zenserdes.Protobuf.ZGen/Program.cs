@@ -35,13 +35,14 @@ namespace Zenserdes.Protobuf.ZGen
 
 			var stringBuilder = new StringBuilder();
 			using var writer = new IndentedTextWriter(new StringWriter(stringBuilder), tabString);
-			var generator = new ProtobufCodeGenerator(writer, protoNamespace);
+			var generator = new ProtobufGenerator.Struct(writer, protoNamespace);
 
 			foreach (var file in files)
 			{
 				generator.Generate(file);
 			}
 
+			Console.WindowWidth = 210;
 			Console.WriteLine(stringBuilder.ToString());
 		}
 	}
