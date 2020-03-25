@@ -14,7 +14,8 @@ namespace Zenserdes.Protobuf.ZGen
 
 			public void Generate(DescriptorProto message)
 			{
-				_writer.WriteLine("public int SizeHint => 1;");
+				// TODO: calculate a good size hint
+				_writer.WriteLine("public int SizeHint => 256; // TODO: calculate a good size hint");
 			}
 		}
 	}

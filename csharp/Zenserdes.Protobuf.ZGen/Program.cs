@@ -42,7 +42,6 @@ namespace Zenserdes.Protobuf.ZGen
 				generator.Generate(file);
 			}
 
-			Console.WindowWidth = 210;
 			Console.WriteLine(stringBuilder.ToString());
 		}
 	}

@@ -18,7 +18,51 @@ namespace Zenserdes.Protobuf.ZGen
 			{
 				_writer.WriteMethod(typeof(bool), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessageOperator<IWantToUseNameof>.TryDeserialize) + "<TBufferWriter>", () =>
 				{
-					_writer.WriteLine("throw new " + typeof(NotImplementedException).FullyQualified() + "();");
+					_writer.WriteLine($"byte wireByte = default;");
+					_writer.WriteLine();
+					_writer.WriteLine($"while (dataStreamer.Next(ref wireByte))");
+					_writer.WriteLine('{');
+					_writer.Indent++;
+
+					_writer.WriteLine("switch (wireByte)");
+					_writer.WriteLine('{');
+					_writer.Indent++;
+
+					foreach (var (field, isLast) in message.Fields.FlagLast())
+					{
+						var fieldId = field.Number;
+						var wireType = field.type == FieldDescriptorProto.Type.TypeString ? 0b00000_010
+							: field.type == FieldDescriptorProto.Type.TypeBytes ? 0b00000_010
+							: field.type == FieldDescriptorProto.Type.TypeMessage ? 0b00000_010
+							: 0b00000_000;
+
+						var wireByte = (fieldId << 3) | wireType;
+
+						var binary = Convert.ToString(wireByte, 2).PadLeft(8, '0');
+						var withUnderscore = binary.Substring(0, 5) + "_" + binary.Substring(5, 3);
+
+						_writer.WriteLine($"case 0b{withUnderscore}:");
+						_writer.WriteLine('{');
+						_writer.Indent++;
+
+						_writer.WriteLine("break;");
+
+						_writer.Indent--;
+						_writer.WriteLine('}');
+
+						if (!isLast)
+						{
+							_writer.WriteLine();
+						}
+					}
+
+					_writer.Indent--;
+					_writer.WriteLine('}');
+
+					_writer.Indent--;
+					_writer.WriteLine('}');
+					_writer.WriteLine();
+					_writer.WriteLine("return true;");
 				}, $"ref {dataStreamer.FullyQualified("TBufferWriter")} message", $"ref {fullyQualifiedMessageName} instance");
 			}
 		}
