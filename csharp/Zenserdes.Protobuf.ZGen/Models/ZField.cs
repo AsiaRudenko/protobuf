@@ -1,23 +1,35 @@
 ﻿using Google.Protobuf.Reflection;
 
 using Humanizer;
-using System;
-using System.Text;
 
 namespace Zenserdes.Protobuf.ZGen.Models
 {
+	public struct ZFieldOptions
+	{
+		public bool Deprecated { get; set; }
+	}
+
 	public class ZField
 	{
-		public ZField(string fieldName, int index, string cSharpType)
+		public ZField(string fieldName, int index, string cSharpType, ZFieldOptions options, WireType wireType, SerializationImplementation serializationImplementation)
 		{
 			FieldName = fieldName;
 			Index = index;
 			CSharpType = cSharpType;
+			Options = options;
+			WireType = wireType;
+			SerializationImplementation = serializationImplementation;
 		}
 
 		public string FieldName { get; }
 		public int Index { get; }
+		public ZFieldOptions Options { get; }
+
+		// implementation stuff i guess
 		public string CSharpType { get; }
+
+		public WireType WireType { get; }
+		public SerializationImplementation SerializationImplementation { get; }
 	}
 
 	public static partial class Extensions
@@ -28,69 +40,15 @@ namespace Zenserdes.Protobuf.ZGen.Models
 			var index = proto.Number;
 			var cSharpType = proto.ToSourceType(@namespace);
 
-			return new ZField(fieldName, index, cSharpType);
-		}
-
-		public static string ToSourceType(this FieldDescriptorProto proto, string @namespace)
-		{
-			var cSharpType = proto.ToCSharpType();
-
-			if (cSharpType != typeof(object))
+			var options = new ZFieldOptions
 			{
-				return cSharpType.ToSourceType();
-			}
+				Deprecated = proto.Options?.Deprecated == true ? true : false
+			};
 
-			// in the format `.Nested.Messages`
-			var typeName = proto.TypeName;
+			var wireType = proto.ToWireType();
+			var serializationImplementation = proto.ToSerializationImplementation();
 
-			var builder = new StringBuilder("global::");
-			builder.Append(@namespace);
-
-			typeName = typeName.Substring(1);
-			builder.Append('.');
-
-			typeName = typeName.Replace(".", ".Types.");
-			builder.Append(typeName);
-
-			return builder.ToString();
-		}
-
-		public static Type ToCSharpType(this FieldDescriptorProto proto)
-		{
-			switch (proto.type)
-			{
-				case FieldDescriptorProto.Type.TypeBool: return typeof(bool);
-
-				case FieldDescriptorProto.Type.TypeInt32:
-				case FieldDescriptorProto.Type.TypeSint32:
-				case FieldDescriptorProto.Type.TypeFixed32:
-				case FieldDescriptorProto.Type.TypeSfixed32:
-					return typeof(int);
-
-				case FieldDescriptorProto.Type.TypeUint32: return typeof(uint);
-
-				case FieldDescriptorProto.Type.TypeInt64:
-				case FieldDescriptorProto.Type.TypeSint64:
-				case FieldDescriptorProto.Type.TypeFixed64:
-				case FieldDescriptorProto.Type.TypeSfixed64:
-					return typeof(long);
-
-				case FieldDescriptorProto.Type.TypeUint64: return typeof(ulong);
-
-				case FieldDescriptorProto.Type.TypeFloat: return typeof(float);
-				case FieldDescriptorProto.Type.TypeDouble: return typeof(double);
-
-				case FieldDescriptorProto.Type.TypeString:
-				case FieldDescriptorProto.Type.TypeBytes:
-					return typeof(ReadOnlyMemory<byte>);
-
-				case FieldDescriptorProto.Type.TypeMessage:
-				case FieldDescriptorProto.Type.TypeEnum:
-				default: return typeof(object);
-
-				case FieldDescriptorProto.Type.TypeGroup:
-					throw new NotSupportedException("Deprecated features are not going to be implemented.");
-			}
+			return new ZField(fieldName, index, cSharpType, options, wireType, serializationImplementation);
 		}
 	}
 }

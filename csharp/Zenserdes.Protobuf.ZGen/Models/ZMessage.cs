@@ -33,7 +33,7 @@ namespace Zenserdes.Protobuf.ZGen.Models
 				fields.Add(field.From(@namespace));
 			}
 
-			var innerScope = scope + ".Types";
+			var innerScope = scope + "Types.";
 
 			var nestedMessages = new List<ZMessage>();
 

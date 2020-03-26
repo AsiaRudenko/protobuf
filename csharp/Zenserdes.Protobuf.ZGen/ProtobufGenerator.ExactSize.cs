@@ -1,8 +1,7 @@
-﻿using Google.Protobuf.Reflection;
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
-using System.Collections.Generic;
-using System.Text;
+
+using Zenserdes.Protobuf.ZGen.Models;
 
 namespace Zenserdes.Protobuf.ZGen
 {
@@ -14,7 +13,7 @@ namespace Zenserdes.Protobuf.ZGen
 
 			public ExactSize(IndentedTextWriter writer) => _writer = writer;
 
-			public void Generate(DescriptorProto message, string fullyQualifiedMessageName, string parameter)
+			public void Generate(ZMessage message, string fullyQualifiedMessageName, string parameter)
 			{
 				_writer.WriteMethod(typeof(ulong), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessageAndOperator<IWantToUseNameof>.ExactSize), () =>
 				{

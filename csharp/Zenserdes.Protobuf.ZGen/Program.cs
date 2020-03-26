@@ -3,6 +3,8 @@ using System.CodeDom.Compiler;
 using System.IO;
 using System.Text;
 
+using Zenserdes.Protobuf.ZGen.Models;
+
 #nullable enable
 
 namespace Zenserdes.Protobuf.ZGen
@@ -39,10 +41,11 @@ namespace Zenserdes.Protobuf.ZGen
 
 			foreach (var file in files)
 			{
-				generator.Generate(file);
+				generator.Generate(file.From(protoNamespace, "global::" + protoNamespace + "."));
 			}
 
 			Console.WriteLine(stringBuilder.ToString());
+			File.WriteAllText("out.txt", stringBuilder.ToString());
 		}
 	}
 }

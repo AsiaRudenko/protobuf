@@ -21,7 +21,7 @@ namespace Zenserdes.Protobuf.ZGen.Models
 	public static partial class Extensions
 	{
 		// `@namespace` is: `Your.Cool.Namespace`
-		// `scope` should be: `global::Your.Cool.Namespace`
+		// `scope` should be: `global::Your.Cool.Namespace.`
 		public static ZProtobufFile From(this FileDescriptorProto proto, string @namespace, string scope)
 		{
 			var messages = new List<ZMessage>();

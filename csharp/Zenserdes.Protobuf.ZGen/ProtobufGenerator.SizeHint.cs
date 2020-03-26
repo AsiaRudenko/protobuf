@@ -1,6 +1,6 @@
-﻿using Google.Protobuf.Reflection;
-using System;
-using System.CodeDom.Compiler;
+﻿using System.CodeDom.Compiler;
+
+using Zenserdes.Protobuf.ZGen.Models;
 
 namespace Zenserdes.Protobuf.ZGen
 {
@@ -12,7 +12,7 @@ namespace Zenserdes.Protobuf.ZGen
 
 			public SizeHint(IndentedTextWriter writer) => _writer = writer;
 
-			public void Generate(DescriptorProto message)
+			public void Generate(ZMessage message)
 			{
 				// TODO: calculate a good size hint
 				_writer.WriteLine("public int SizeHint => 256; // TODO: calculate a good size hint");

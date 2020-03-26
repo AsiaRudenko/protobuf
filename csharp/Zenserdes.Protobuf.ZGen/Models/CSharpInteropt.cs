@@ -1,10 +1,32 @@
 ﻿using Google.Protobuf.Reflection;
+
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Zenserdes.Protobuf.ZGen.Models
 {
+	public enum WireType
+	{
+		Varint = 0b00000_000,
+		Bit64 = 0b00000_001,
+		LengthDelimited = 0b00000_010,
+		[Obsolete] StartGroup = 0b00000_011,
+		[Obsolete] EndGroup = 0b00000_100,
+		Bit32 = 0b00000_101,
+	};
+
+	public enum SerializationImplementation
+	{
+		Varint32,
+		Zigzag32,
+		Fixed32,
+		Varint64,
+		Zigzag64,
+		Fixed64,
+		Bytes,
+	}
+
 	public static class CSharpInteropt
 	{
 		public static string ToSourceType(this FieldDescriptorProto proto, string @namespace)
@@ -141,6 +163,77 @@ namespace Zenserdes.Protobuf.ZGen.Models
 			}
 
 			return nameBuilder.ToString();
+		}
+
+		public static WireType ToWireType(this FieldDescriptorProto proto)
+		{
+			switch (proto.type)
+			{
+				case FieldDescriptorProto.Type.TypeBool:
+
+				case FieldDescriptorProto.Type.TypeEnum:
+
+				case FieldDescriptorProto.Type.TypeInt32:
+				case FieldDescriptorProto.Type.TypeUint32:
+				case FieldDescriptorProto.Type.TypeSint32:
+
+				case FieldDescriptorProto.Type.TypeInt64:
+				case FieldDescriptorProto.Type.TypeUint64:
+				case FieldDescriptorProto.Type.TypeSint64:
+					return WireType.Varint;
+
+				case FieldDescriptorProto.Type.TypeString:
+				case FieldDescriptorProto.Type.TypeBytes:
+				case FieldDescriptorProto.Type.TypeMessage:
+					return WireType.LengthDelimited;
+
+				case FieldDescriptorProto.Type.TypeFloat:
+				case FieldDescriptorProto.Type.TypeFixed32:
+					return WireType.Bit32;
+
+				case FieldDescriptorProto.Type.TypeDouble:
+				case FieldDescriptorProto.Type.TypeFixed64:
+					return WireType.Bit64;
+
+				default: throw new NotSupportedException("Deprecated features not supported.");
+			}
+		}
+
+		public static SerializationImplementation ToSerializationImplementation(this FieldDescriptorProto proto)
+		{
+			switch (proto.type)
+			{
+				case FieldDescriptorProto.Type.TypeBool:
+				case FieldDescriptorProto.Type.TypeEnum:
+				case FieldDescriptorProto.Type.TypeInt32:
+				case FieldDescriptorProto.Type.TypeUint32:
+					return SerializationImplementation.Varint32;
+
+				case FieldDescriptorProto.Type.TypeSint32:
+					return SerializationImplementation.Zigzag32;
+
+				case FieldDescriptorProto.Type.TypeInt64:
+				case FieldDescriptorProto.Type.TypeUint64:
+					return SerializationImplementation.Varint64;
+
+				case FieldDescriptorProto.Type.TypeSint64:
+					return SerializationImplementation.Zigzag64;
+
+				case FieldDescriptorProto.Type.TypeString:
+				case FieldDescriptorProto.Type.TypeBytes:
+				case FieldDescriptorProto.Type.TypeMessage:
+					return SerializationImplementation.Bytes;
+
+				case FieldDescriptorProto.Type.TypeFloat:
+				case FieldDescriptorProto.Type.TypeFixed32:
+					return SerializationImplementation.Fixed32;
+
+				case FieldDescriptorProto.Type.TypeDouble:
+				case FieldDescriptorProto.Type.TypeFixed64:
+					return SerializationImplementation.Fixed64;
+
+				default: throw new NotSupportedException("Deprecated features not supported.");
+			}
 		}
 	}
 }

@@ -11,6 +11,7 @@ using Humanizer;
 
 using Zenserdes.Protobuf.Serialization;
 using Zenserdes.Protobuf;
+using Zenserdes.Protobuf.ZGen.Models;
 
 #nullable enable
 
@@ -37,7 +38,7 @@ namespace Zenserdes.Protobuf.ZGen
 				_writer.WriteLine("// </auto-generated>");
 			}
 
-			public void Generate(FileDescriptorProto proto)
+			public void Generate(ZProtobufFile proto)
 			{
 				_writer.WriteLine();
 
@@ -47,11 +48,11 @@ namespace Zenserdes.Protobuf.ZGen
 
 				var wroteData = 0;
 
-				foreach (var (message, isLast) in proto.MessageTypes.FlagLast())
+				foreach (var (message, isLast) in proto.Messages.FlagLast())
 				{
 					wroteData = 1;
 
-					GenerateMessage(message, ".");
+					GenerateMessage(message);
 
 					if (!isLast)
 					{
@@ -59,11 +60,11 @@ namespace Zenserdes.Protobuf.ZGen
 					}
 				}
 
-				foreach (var (@enum, isLast) in proto.EnumTypes.FlagLast())
+				foreach (var (@enum, isLast) in proto.Enums.FlagLast())
 				{
 					LineHelper(ref wroteData, 2);
 
-					GenerateEnum(@enum, ".");
+					GenerateEnum(@enum);
 				}
 
 				_writer.Indent--;
@@ -83,12 +84,11 @@ namespace Zenserdes.Protobuf.ZGen
 				}
 			}
 
-			public void GenerateMessage(DescriptorProto message, string typeName)
+			public void GenerateMessage(ZMessage message)
 			{
-				var fullyQualifiedMessageName = FullyQualifiedProtobuf(typeName + message.Name);
-				var inherits = typeof(IMessageAndOperator<>).FullyQualified(fullyQualifiedMessageName);
+				var inherits = typeof(IMessageAndOperator<>).FullyQualified(message.FullName);
 
-				_writer.WriteLine($"public partial struct {message.Name.NameOf()} : {inherits}");
+				_writer.WriteLine($"public partial struct {message.Name} : {inherits}");
 				_writer.WriteLine('{');
 				_writer.Indent++;
 
@@ -104,8 +104,8 @@ namespace Zenserdes.Protobuf.ZGen
 					EndHelper(isLast);
 				}
 
-				var areNestedTypes = message.EnumTypes.Any()
-					|| message.NestedTypes.Any();
+				var areNestedTypes = message.NestedEnums.Any()
+					|| message.NestedMessages.Any();
 
 				// nested types like enums & etc
 				if (areNestedTypes)
@@ -117,21 +117,21 @@ namespace Zenserdes.Protobuf.ZGen
 					_writer.Indent++;
 
 					// nested enums
-					foreach (var (nestedEnum, isLast) in message.EnumTypes.FlagLast())
+					foreach (var (nestedEnum, isLast) in message.NestedEnums.FlagLast())
 					{
 						wroteData = 3;
 
-						GenerateEnum(nestedEnum, fullyQualifiedMessageName + $".Types");
+						GenerateEnum(nestedEnum);
 
 						EndHelper(isLast);
 					}
 
 					// nested types
-					foreach (var (nestedType, isLast) in message.NestedTypes.FlagLast())
+					foreach (var (nestedType, isLast) in message.NestedMessages.FlagLast())
 					{
 						LineHelper(ref wroteData, 4);
 
-						GenerateMessage(nestedType, fullyQualifiedMessageName + $".Types");
+						GenerateMessage(nestedType);
 
 						EndHelper(isLast);
 					}
@@ -144,7 +144,7 @@ namespace Zenserdes.Protobuf.ZGen
 
 				LineHelper(ref wroteData, 5);
 
-				ImplementIMessageAndOperator(message, fullyQualifiedMessageName);
+				ImplementIMessageAndOperator(message);
 
 				_writer.Indent--;
 				_writer.WriteLine('}');
@@ -171,7 +171,7 @@ namespace Zenserdes.Protobuf.ZGen
 				}
 			}
 
-			public void ImplementIMessageAndOperator(DescriptorProto message, string fullyQualifiedMessageName)
+			public void ImplementIMessageAndOperator(ZMessage message)
 			{
 				var sizeHint = new SizeHint(_writer);
 				sizeHint.Generate(message);
@@ -188,43 +188,41 @@ namespace Zenserdes.Protobuf.ZGen
 				_writer.WriteLine();
 
 				var exactSize = new ExactSize(_writer);
-				exactSize.Generate(message, fullyQualifiedMessageName, $"in {fullyQualifiedMessageName} message");
+				exactSize.Generate(message, message.FullName, $"in {message.FullName} message");
 				_writer.WriteLine();
 
-				exactSize.Generate(message, fullyQualifiedMessageName, $"{fullyQualifiedMessageName} message");
+				exactSize.Generate(message, message.FullName, $"{message.FullName} message");
 				_writer.WriteLine();
 
 				var tryDeserialize = new TryDeserialize(_writer);
-				tryDeserialize.Generate(message, fullyQualifiedMessageName, typeof(SpanDataStreamer<>));
+				tryDeserialize.Generate(message, message.FullName, typeof(SpanDataStreamer<>));
 				_writer.WriteLine();
 
-				tryDeserialize.Generate(message, fullyQualifiedMessageName, typeof(MemoryDataStreamer<>));
+				tryDeserialize.Generate(message, message.FullName, typeof(MemoryDataStreamer<>));
 				_writer.WriteLine();
 
-				tryDeserialize.Generate(message, fullyQualifiedMessageName, typeof(StreamDataStreamer<>));
+				tryDeserialize.Generate(message, message.FullName, typeof(StreamDataStreamer<>));
 				_writer.WriteLine();
 			}
 
-			public void GenerateField(FieldDescriptorProto field)
+			public void GenerateField(ZField field)
 			{
 				// TODO: additional information about the field
 				_writer.WriteLine("/// <summary>");
-				_writer.WriteLine($"/// Index: {field.Number}");
+				_writer.WriteLine($"/// Index: {field.Index}");
 				_writer.WriteLine("/// </summary>");
 
-				if (field.Options?.Deprecated == true)
+				if (field.Options.Deprecated == true)
 				{
 					_writer.WriteLine($"[{typeof(ObsoleteAttribute).FullyQualified()}]");
 				}
 
-				_writer.WriteLine($"public {StringTypeOf(field)} {field.Name.NameOf()} {{ get; set; }}");
+				_writer.WriteLine($"public {field.CSharpType} {field.FieldName} {{ get; set; }}");
 			}
 
-			public void GenerateEnum(EnumDescriptorProto @enum, string fullyQualifiedName)
+			public void GenerateEnum(ZEnum @enum)
 			{
-				var protoEnumName = FullyQualifiedProtobuf(fullyQualifiedName + @enum.Name);
-
-				_writer.WriteLine($"public enum {@enum.Name.NameOf()}");
+				_writer.WriteLine($"public enum {@enum.Name}");
 				_writer.WriteLine('{');
 				_writer.Indent++;
 
@@ -233,7 +231,7 @@ namespace Zenserdes.Protobuf.ZGen
 				foreach (var (value, isLast) in @enum.Values.FlagLast())
 				{
 					valuesWritten = true;
-					_writer.Write($"{value.Name.NameOf(true)} = {value.Number}");
+					_writer.Write($"{value.Name} = {value.Index}");
 
 					if (!isLast)
 					{

@@ -1,8 +1,7 @@
-﻿using Google.Protobuf.Reflection;
-using System;
-using System.Buffers;
+﻿using System;
 using System.CodeDom.Compiler;
-using Zenserdes.Protobuf.Serialization;
+
+using Zenserdes.Protobuf.ZGen.Models;
 
 namespace Zenserdes.Protobuf.ZGen
 {
@@ -14,7 +13,7 @@ namespace Zenserdes.Protobuf.ZGen
 
 			public TryDeserialize(IndentedTextWriter writer) => _writer = writer;
 
-			public void Generate(DescriptorProto message, string fullyQualifiedMessageName, Type dataStreamer)
+			public void Generate(ZMessage message, string fullyQualifiedMessageName, Type dataStreamer)
 			{
 				_writer.WriteMethod(typeof(bool), typeof(IMessageOperator<>), new string[] { fullyQualifiedMessageName }, nameof(IMessageOperator<IWantToUseNameof>.TryDeserialize) + "<TBufferWriter>", () =>
 				{
@@ -30,11 +29,8 @@ namespace Zenserdes.Protobuf.ZGen
 
 					foreach (var (field, isLast) in message.Fields.FlagLast())
 					{
-						var fieldId = field.Number;
-						var wireType = field.type == FieldDescriptorProto.Type.TypeString ? 0b00000_010
-							: field.type == FieldDescriptorProto.Type.TypeBytes ? 0b00000_010
-							: field.type == FieldDescriptorProto.Type.TypeMessage ? 0b00000_010
-							: 0b00000_000;
+						var fieldId = (byte)field.Index;
+						var wireType = (byte)field.WireType;
 
 						var wireByte = (fieldId << 3) | wireType;
 
@@ -63,7 +59,7 @@ namespace Zenserdes.Protobuf.ZGen
 					_writer.WriteLine('}');
 					_writer.WriteLine();
 					_writer.WriteLine("return true;");
-				}, $"ref {dataStreamer.FullyQualified("TBufferWriter")} message", $"ref {fullyQualifiedMessageName} instance");
+				}, $"ref {dataStreamer.FullyQualified("TBufferWriter")} dataStreamer", $"ref {fullyQualifiedMessageName} instance");
 			}
 		}
 	}
