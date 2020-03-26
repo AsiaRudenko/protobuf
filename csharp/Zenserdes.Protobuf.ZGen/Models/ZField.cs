@@ -2,7 +2,7 @@
 
 using Humanizer;
 
-namespace Zenserdes.Protobuf.ZGen.Models
+namespace Zenserdes.Protobuf.ZenGen.Models
 {
 	public struct ZFieldOptions
 	{

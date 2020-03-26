@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zenserdes.Protobuf.Tests", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zenserdes.Protobuf.Benchmarks", "Zenserdes.Protobuf.Benchmarks\Zenserdes.Protobuf.Benchmarks.csproj", "{53B2E59F-B1FB-4D11-898E-07B36B515EB3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Zenserdes.Protobuf.ZGen", "Zenserdes.Protobuf.ZGen\Zenserdes.Protobuf.ZGen.csproj", "{92F28639-C181-407F-A4B7-6C3126F43D39}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Zenserdes.Protobuf.ZenGen", "Zenserdes.Protobuf.ZGen\Zenserdes.Protobuf.ZenGen.csproj", "{92F28639-C181-407F-A4B7-6C3126F43D39}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -3,11 +3,11 @@ using System.CodeDom.Compiler;
 using System.IO;
 using System.Text;
 
-using Zenserdes.Protobuf.ZGen.Models;
+using Zenserdes.Protobuf.ZenGen.Models;
 
 #nullable enable
 
-namespace Zenserdes.Protobuf.ZGen
+namespace Zenserdes.Protobuf.ZenGen
 {
 	internal class Program
 	{

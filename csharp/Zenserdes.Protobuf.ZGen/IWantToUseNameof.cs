@@ -5,7 +5,7 @@ using Zenserdes.Protobuf.Serialization;
 
 #nullable enable
 
-namespace Zenserdes.Protobuf.ZGen
+namespace Zenserdes.Protobuf.ZenGen
 {
 	internal struct IWantToUseNameof : IMessageAndOperator<IWantToUseNameof>
 	{

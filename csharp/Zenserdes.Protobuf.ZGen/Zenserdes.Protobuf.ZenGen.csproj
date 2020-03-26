@@ -3,8 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <AssemblyName>zgen</AssemblyName>
-    <RootNamespace>Zenserdes.Protobuf.ZGen</RootNamespace>
+    <AssemblyName>zengen</AssemblyName>
+    <RootNamespace>Zenserdes.Protobuf.ZenGen</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

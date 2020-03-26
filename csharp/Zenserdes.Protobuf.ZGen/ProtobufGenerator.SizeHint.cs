@@ -1,8 +1,8 @@
 ﻿using System.CodeDom.Compiler;
 
-using Zenserdes.Protobuf.ZGen.Models;
+using Zenserdes.Protobuf.ZenGen.Models;
 
-namespace Zenserdes.Protobuf.ZGen
+namespace Zenserdes.Protobuf.ZenGen
 {
 	public static partial class ProtobufGenerator
 	{

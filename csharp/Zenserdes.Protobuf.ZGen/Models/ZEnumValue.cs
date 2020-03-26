@@ -1,6 +1,6 @@
 ﻿using Google.Protobuf.Reflection;
 
-namespace Zenserdes.Protobuf.ZGen.Models
+namespace Zenserdes.Protobuf.ZenGen.Models
 {
 	public class ZEnumValue
 	{

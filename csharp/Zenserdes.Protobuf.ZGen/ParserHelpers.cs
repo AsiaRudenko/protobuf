@@ -6,7 +6,7 @@ using System.IO;
 
 #nullable enable
 
-namespace Zenserdes.Protobuf.ZGen
+namespace Zenserdes.Protobuf.ZenGen
 {
 	public static class ParserHelpers
 	{

@@ -11,12 +11,12 @@ using Humanizer;
 
 using Zenserdes.Protobuf.Serialization;
 using Zenserdes.Protobuf;
-using Zenserdes.Protobuf.ZGen.Models;
+using Zenserdes.Protobuf.ZenGen.Models;
 
 #nullable enable
 
 
-namespace Zenserdes.Protobuf.ZGen
+namespace Zenserdes.Protobuf.ZenGen
 {
 	public static partial class ProtobufGenerator
 	{

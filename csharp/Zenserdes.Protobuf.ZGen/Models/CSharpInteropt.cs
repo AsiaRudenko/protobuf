@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Zenserdes.Protobuf.ZGen.Models
+namespace Zenserdes.Protobuf.ZenGen.Models
 {
 	public enum WireType
 	{
