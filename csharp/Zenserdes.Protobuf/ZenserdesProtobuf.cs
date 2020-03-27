@@ -536,10 +536,11 @@ namespace Zenserdes.Protobuf
 			// the reason we are not accepting spans is because you can't go from
 			// a span to a memory, and the TMessage might have fields that require
 			// ROM<byte>s.
-			ReadOnlyMemory<byte> source
+			ReadOnlyMemory<byte> source,
+			bool longRetention = true
 		)
 			where TMessage : struct, IMessageAndOperator<TMessage>
-			=> Deserialize<TMessage, TMessage>(source);
+			=> Deserialize<TMessage, TMessage>(source, longRetention);
 
 		/// <summary>
 		/// Deserializes a message into its representation from a source of bytes.
@@ -560,12 +561,13 @@ namespace Zenserdes.Protobuf
 			// the reason we are not accepting spans is because you can't go from
 			// a span to a memory, and the TMessage might have fields that require
 			// ROM<byte>s.
-			ReadOnlyMemory<byte> source
+			ReadOnlyMemory<byte> source,
+			bool longRetention = true
 		)
 			where TMessage : IMessage
 			where TOperator : struct, IMessageOperator<TMessage>
 		{
-			var success = TryDeserialize<TMessage, TOperator>(source, out var message);
+			var success = TryDeserialize<TMessage, TOperator>(source, out var message, longRetention);
 
 			if (!success)
 			{

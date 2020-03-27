@@ -32,6 +32,8 @@ namespace Zenserdes.Protobuf.Benchmarks
 61 2B 77 6F 6F 64 2B 63 68 75 63 6B 2B 63 6F 75 6C 64 2B 63 68 75 63 6B 2B 77 6F 6F 64
 10 2F 18 64".Split(' ', '\n').Select(str => byte.Parse(str, NumberStyles.HexNumber)).ToArray();
 
+		public static byte[] Payload => _payload;
+
 		[Benchmark]
 		public SearchRequest Deserialize()
 		{
