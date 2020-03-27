@@ -34,5 +34,39 @@ namespace Zenserdes.Protobuf.Serialization
 
 			return false;
 		}
+
+		public ReadOnlySpan<byte> MaybeReadWorkaround(int max)
+			=> ReadOnlySpan.Slice(Position, Math.Min(ReadOnlySpan.Length - Position, max));
+
+		/// <summary>
+		/// Only used for varint decoding. This isn't very useful in any other situation,
+		/// because there is no way to tell how many bytes were copied.
+		/// </summary>
+		/// <param name="target"></param>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void MaybeRead(Span<byte> target)
+		{
+			ReadOnlySpan.Slice(Position).CopyTo(target);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void Advance(int bytes)
+		{
+			Position += bytes;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public bool ReadPermanent(int bytes, out ReadOnlyMemory<byte> memory)
+		{
+			if (Position + bytes <= ReadOnlyMemory.Length)
+			{
+				memory = ReadOnlyMemory.Slice(Position, bytes);
+				Position += bytes;
+				return true;
+			}
+
+			memory = default;
+			return false;
+		}
 	}
 }

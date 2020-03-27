@@ -1295,7 +1295,7 @@ namespace Zenserdes.Protobuf
 			where TOperator : struct, IMessageOperator<TMessage>
 			where TBufferWriter : IBufferWriter<byte>
 		{
-			var dataStreamer = new StreamDataStreamer<TBufferWriter>(source, bufferWriter);
+			var dataStreamer = new StreamDataStreamer<TBufferWriter>(source, bufferWriter, stackalloc byte[StreamDataStreamer<TBufferWriter>.BufferSize]);
 			message = default!;
 
 			return default(TOperator).TryDeserialize<TBufferWriter>(ref dataStreamer, ref message);
