@@ -37,13 +37,25 @@ namespace Zenserdes.Protobuf.ZenGen
 			{
 				foreach (var error in errors)
 				{
-					Console.WriteLine(error);
+					throw new InvalidOperationException(error.ToString());
 				}
-
-				return null;
 			}
 
 			return fileDescriptorSet.Files;
+		}
+
+		public static FileDescriptorProto? ParseText(string fileText, string @namespace)
+		{
+			// lol :)
+			// TODO: figure out how to parse proto files in memory
+			var tempName = Path.GetTempFileName();
+			File.WriteAllText(tempName, fileText);
+
+			Directory.SetCurrentDirectory(Path.GetDirectoryName(tempName));
+			var result = Parse(Path.GetFileName(tempName), @namespace)?[0];
+
+			File.Delete(tempName);
+			return result;
 		}
 	}
 }
