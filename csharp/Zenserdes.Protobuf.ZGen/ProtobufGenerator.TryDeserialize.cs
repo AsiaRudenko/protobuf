@@ -58,13 +58,13 @@ namespace Zenserdes.Protobuf.ZenGen
 						{
 							case SerializationImplementation.Varint32:
 							{
-								GenerateSerializerCodeVarint(_writer, field);
+								GenerateSerializerCodeVarint(_writer, dataStreamer, field);
 							}
 							break;
 
 							case SerializationImplementation.Bytes:
 							{
-								GenerateSerializerCodeBytes(_writer, field);
+								GenerateSerializerCodeBytes(_writer, dataStreamer, field);
 							}
 							break;
 
@@ -95,42 +95,47 @@ namespace Zenserdes.Protobuf.ZenGen
 				}, $"ref {dataStreamer.FullyQualified("TBufferWriter")} {n_dataStreamer}", $"ref {fullyQualifiedMessageName} {n_instance}");
 			}
 
-			public static void GenerateSerializerCodeVarint(IndentedTextWriter writer, ZField field)
+			private static void VarintHelper(IndentedTextWriter writer, Type dataStreamer)
 			{
-				writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.MaybeReadWorkaround)}(10).CopyTo({n_temp});");
-				writer.WriteLine();
-				writer.WriteLine("var offset = 0;");
-				writer.WriteLine("var result = 0u;");
-				writer.WriteLine($"if (!{typeof(DataDecoder).FullyQualified()}.{nameof(DataDecoder.TryReadVarint32)}({n_temp}, ref offset, ref result))");
-
-				using (var _ = writer.WithCodeBlock())
+				if (dataStreamer == typeof(StreamDataStreamer<>))
 				{
-					writer.WriteLine("return false;");
-				}
+					writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.MaybeReadWorkaround)}(10).CopyTo({n_temp});");
+					writer.WriteLine();
+					writer.WriteLine("var offset = 0;");
+					writer.WriteLine("var result = 0u;");
+					writer.WriteLine($"if (!{typeof(DataDecoder).FullyQualified()}.{nameof(DataDecoder.TryReadVarint32)}({n_temp}, ref offset, ref result))");
 
-				writer.WriteLine();
-				writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.Advance)}(offset);");
+					using (var _ = writer.WithCodeBlock())
+					{
+						writer.WriteLine("return false;");
+					}
+
+					writer.WriteLine();
+					writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.Advance)}(offset);");
+				}
+				else
+				{
+					writer.WriteLine("var result = 0u;");
+					writer.WriteLine($"if (!{typeof(DataDecoder).FullyQualified()}.{nameof(DataDecoder.TryReadVarint32)}({n_dataStreamer}.ReadOnlySpan, ref {n_dataStreamer}.Position, ref result))");
+
+					using (var _ = writer.WithCodeBlock())
+					{
+						writer.WriteLine("return false;");
+					}
+
+					writer.WriteLine();
+				}
+			}
+
+			public static void GenerateSerializerCodeVarint(IndentedTextWriter writer, Type dataStreamer, ZField field)
+			{
+				VarintHelper(writer, dataStreamer);
 				writer.WriteLine($"{n_instance}.{field.FieldName} = ({field.CSharpType})result;");
 			}
 
-			public static void GenerateSerializerCodeBytes(IndentedTextWriter writer, ZField field)
+			public static void GenerateSerializerCodeBytes(IndentedTextWriter writer, Type dataStreamer, ZField field)
 			{
-				// varint code
-
-				writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.MaybeReadWorkaround)}(10).CopyTo({n_temp});");
-				writer.WriteLine();
-				writer.WriteLine("var offset = 0;");
-				writer.WriteLine("var result = 0u;");
-				writer.WriteLine($"if (!{typeof(DataDecoder).FullyQualified()}.{nameof(DataDecoder.TryReadVarint32)}({n_temp}, ref offset, ref result))");
-
-				using (var _ = writer.WithCodeBlock())
-				{
-					writer.WriteLine("return false;");
-				}
-
-				writer.WriteLine();
-				writer.WriteLine($"{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.Advance)}(offset);");
-
+				VarintHelper(writer, dataStreamer);
 				writer.WriteLine($"if (!{n_dataStreamer}.{nameof(MemoryDataStreamer<IBufferWriter<byte>>.ReadPermanent)}((int)result, out var memory))");
 
 				using (var _ = writer.WithCodeBlock())

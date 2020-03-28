@@ -7,7 +7,7 @@ namespace Zenserdes.Protobuf.Serialization
 	public ref struct SpanDataStreamer<TBufferWriter>
 		where TBufferWriter : IBufferWriter<byte>
 	{
-		public readonly ReadOnlySpan<byte> Span;
+		public readonly ReadOnlySpan<byte> ReadOnlySpan;
 
 		// *not* marked as readonly, incase it is a mutating struct
 		public TBufferWriter BufferWriter;
@@ -16,7 +16,7 @@ namespace Zenserdes.Protobuf.Serialization
 
 		public SpanDataStreamer(ReadOnlySpan<byte> span, TBufferWriter bufferWriter)
 		{
-			Span = span;
+			ReadOnlySpan = span;
 			BufferWriter = bufferWriter;
 			Position = 0;
 		}
@@ -24,9 +24,9 @@ namespace Zenserdes.Protobuf.Serialization
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public bool Next(ref byte data)
 		{
-			if (Position < Span.Length)
+			if (Position < ReadOnlySpan.Length)
 			{
-				data = Span[Position++];
+				data = ReadOnlySpan[Position++];
 				return true;
 			}
 
@@ -35,7 +35,7 @@ namespace Zenserdes.Protobuf.Serialization
 
 
 		public ReadOnlySpan<byte> MaybeReadWorkaround(int max)
-			=> Span.Slice(Position, Math.Min(Span.Length - Position, max));
+			=> ReadOnlySpan.Slice(Position, Math.Min(ReadOnlySpan.Length - Position, max));
 
 		/// <summary>
 		/// Only used for varint decoding. This isn't very useful in any other situation,
@@ -45,7 +45,7 @@ namespace Zenserdes.Protobuf.Serialization
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public unsafe void MaybeRead(Span<byte> target)
 		{
-			Span.Slice(Position).CopyTo(target);
+			ReadOnlySpan.Slice(Position).CopyTo(target);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,12 +57,12 @@ namespace Zenserdes.Protobuf.Serialization
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public bool ReadPermanent(int bytes, out ReadOnlyMemory<byte> memory)
 		{
-			if (Position + bytes <= Span.Length)
+			if (Position + bytes <= ReadOnlySpan.Length)
 			{
 				var target = BufferWriter.GetMemory(bytes).Slice(0, bytes);
 				BufferWriter.Advance(bytes);
 
-				Span.Slice(Position, bytes).CopyTo(target.Span);
+				ReadOnlySpan.Slice(Position, bytes).CopyTo(target.Span);
 				Position += bytes;
 				memory = target;
 				return true;
