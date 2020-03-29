@@ -4,8 +4,11 @@ using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
 using System;
+using System.Buffers;
 using System.CodeDom.Compiler;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -82,13 +85,16 @@ namespace Zenserdes.Protobuf.Tests.GeneratedCodeTests
 			var roslynCode = roslynScript.ToString();
 			logger?.WriteLine("{0}", roslynCode);
 
-			return CSharpLanguageService.Evaluate(generatedCode, roslynCode, @namespace);
+			return CSharpLanguageService.Evaluate(logger, generatedCode, roslynCode, @namespace);
 		}
 	}
 
 	public static class CSharpLanguageService
 	{
 		private const string _generatedAssemblyName = "GeneratedZenserdesProtobufCode";
+
+		private static Assembly LoadAssemblyByString(string fullName)
+			=> AppDomain.CurrentDomain.GetAssemblies().First(x => x.FullName == fullName);
 
 		private static MetadataReference[] _assemblyReferences = new MetadataReference[]
 		{
@@ -97,27 +103,50 @@ namespace Zenserdes.Protobuf.Tests.GeneratedCodeTests
 			MetadataReference.CreateFromFile(typeof(FluentAssertions.AssertionExtensions).Assembly.Location),
 
 			// zenserdes
-			MetadataReference.CreateFromFile(typeof(ZenserdesProtobuf).Assembly.Location),
+			MetadataReference.CreateFromFile(typeof(Zenserdes.Protobuf.ZenserdesProtobuf).Assembly.Location),
+
+			// c#
+			MetadataReference.CreateFromFile(typeof(System.Buffers.IBufferWriter<>).Assembly.Location),
+			MetadataReference.CreateFromFile(LoadAssemblyByString("netstandard, Version=2.1.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51").Location),
+			MetadataReference.CreateFromFile(LoadAssemblyByString("System.Runtime, Version=4.2.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a").Location),
+			MetadataReference.CreateFromFile(LoadAssemblyByString("System.Private.CoreLib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e").Location),
 		};
 
 		private static ScriptOptions _scriptOptions = ScriptOptions.Default
-			.WithLanguageVersion(LanguageVersion.Latest)
+			.WithLanguageVersion(LanguageVersion.CSharp8)
 			.AddReferences(_assemblyReferences)
 			.WithImports("System", "Zenserdes.Protobuf", "FluentAssertions");
 
-		public static async Task Evaluate(string generatedCode, string scriptCode, string? @namespace = null)
+		public static async Task Evaluate(ITestOutputHelper? logger, string generatedCode, string scriptCode, string? @namespace = null)
 		{
-			var compilation = Compile(generatedCode);
+			var compilation = Compile(logger, generatedCode);
 
-			var scriptOptions = _scriptOptions
-				.AddReferences(compilation.ToMetadataReference());
+			// compile to a file to satisfy script needing a file, (i guess?)
+			var tempFile = Path.GetTempFileName();
 
-			if (@namespace?.Length > 0)
+			try
 			{
-				scriptOptions = scriptOptions.AddImports(@namespace);
-			}
+				if (!compilation.Emit(tempFile).Success)
+				{
+					throw new CompilationErrorException("Couldn't emit assembly.", default);
+				}
 
-			await CSharpScript.RunAsync(scriptCode, scriptOptions);
+				var compilationReference = MetadataReference.CreateFromFile(tempFile);
+
+				var scriptOptions = _scriptOptions
+					.AddReferences(compilationReference);
+
+				if (@namespace?.Length > 0)
+				{
+					scriptOptions = scriptOptions.AddImports(@namespace);
+				}
+
+				await CSharpScript.RunAsync(scriptCode, scriptOptions);
+			}
+			finally
+			{
+				// File.Delete(tempFile);
+			}
 		}
 
 		// https://josephwoodward.co.uk/2016/12/in-memory-c-sharp-compilation-using-roslyn
@@ -130,7 +159,7 @@ namespace Zenserdes.Protobuf.Tests.GeneratedCodeTests
 
 		private static CSharpParseOptions _parseOptions = new CSharpParseOptions(LanguageVersion.Latest, DocumentationMode.None);
 
-		private static Compilation Compile(string selfCode)
+		private static Compilation Compile(ITestOutputHelper? logger, string selfCode)
 		{
 			var syntaxTree = CSharpSyntaxTree.ParseText(selfCode, _parseOptions);
 
@@ -141,6 +170,18 @@ namespace Zenserdes.Protobuf.Tests.GeneratedCodeTests
 				options: _compilationOptions,
 				references: _assemblyReferences
 			);
+
+			var diagnostics = compilation.GetDiagnostics();
+
+			if (diagnostics.Any(x => x.Severity == DiagnosticSeverity.Error))
+			{
+				foreach (var diagnostic in diagnostics.Where(x => x.Severity == DiagnosticSeverity.Error))
+				{
+					logger?.WriteLine("{0}", diagnostic);
+				}
+
+				throw new CompilationErrorException("Failed to compile supplemental source code", diagnostics);
+			}
 
 			return compilation;
 		}

@@ -42,9 +42,12 @@ namespace Zenserdes.Protobuf.ZenGen
 			{
 				_writer.WriteLine();
 
-				_writer.WriteLine($"namespace {_package}");
-				_writer.WriteLine('{');
-				_writer.Indent++;
+				if (_package?.Length > 0)
+				{
+					_writer.WriteLine($"namespace {_package}");
+					_writer.WriteLine('{');
+					_writer.Indent++;
+				}
 
 				var wroteData = 0;
 
@@ -67,8 +70,11 @@ namespace Zenserdes.Protobuf.ZenGen
 					GenerateEnum(@enum);
 				}
 
-				_writer.Indent--;
-				_writer.WriteLine('}');
+				if (_package?.Length > 0)
+				{
+					_writer.Indent--;
+					_writer.WriteLine('}');
+				}
 
 				void LineHelper(ref int wroteData, int supposeToBe)
 				{
